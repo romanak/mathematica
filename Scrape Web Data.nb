@@ -1,0 +1,214 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 12.2' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      7528,        206]
+NotebookOptionsPosition[      6963,        188]
+NotebookOutlinePosition[      7355,        204]
+CellTagsIndexPosition[      7312,        201]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"data", "=", 
+   RowBox[{"Import", "[", 
+    RowBox[{
+    "\"\<https://finance.yahoo.com/quote/GOOG/history?p=GOOG\>\"", ",", 
+     "\"\<Data\>\""}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"dates", "=", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"DateList", "[", "#", "]"}], "&"}], "/@", 
+    RowBox[{"data", "[", 
+     RowBox[{"[", 
+      RowBox[{"3", ",", "2", ",", "All", ",", "1"}], "]"}], "]"}]}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"prices", "=", 
+   RowBox[{
+    RowBox[{
+     RowBox[{
+      RowBox[{"Interpreter", "[", "\"\<Number\>\"", "]"}], "[", "#", "]"}], 
+     "&"}], "/@", 
+    RowBox[{"data", "[", 
+     RowBox[{"[", 
+      RowBox[{"3", ",", "2", ",", "All", ",", "2"}], "]"}], "]"}]}]}], 
+  ";"}]}], "Input",
+ CellLabel->
+  "In[123]:=",ExpressionUUID->"403b311e-2757-45b6-ac48-6f0388b742e9"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"DateListPlot", "[", 
+  RowBox[{"Transpose", "[", 
+   RowBox[{"{", 
+    RowBox[{"dates", ",", "prices"}], "}"}], "]"}], "]"}]], "Input",
+ CellChangeTimes->{{3.8355008438105183`*^9, 3.8355008559984837`*^9}},
+ CellLabel->
+  "In[170]:=",ExpressionUUID->"4bd8eac5-8733-40ad-ae6f-b9a9912d9775"],
+
+Cell[BoxData[
+ GraphicsBox[{{}, {{}, {}, 
+    {RGBColor[0.368417, 0.506779, 0.709798], PointSize[0.009166666666666668], 
+     AbsoluteThickness[1.6], LineBox[CompressedData["
+1:eJw11F1Ik1EYB/AVmeRNC+0DCbUs0xKTCrJgtHlj2QfTIm+0ZpmRXaSVFH6+
+OufUuS/tJtGcOiGKbJCIXQRLTbOmTCgtK5g3KfoaC6uLEOu8/+fZCyK/vefj
+f55zzrvryq3sa+tVKlWB+FP+i8ezvkLWDcaYlrLmO7XCgWThQvF8T3ApVucI
+z/QUayLCYNfHkLfA/n/C5VF9GflpsGp/pazLFgPepP6pF4TF67myDoxvqBKO
+UAY4hPfBVeE/ibn29CI4bl+VrEOyZFifJSxniQEPwlK5sEg7GHME9vSG2mfC
+2j3Vsq7toXh2wsXnqmn+vxrKf194+Hdi7mbK6++u5v7RlH9C+LDyLCCv47Qk
+6+xDogPVx1sqUX0Kwyl/p0TrebWb8r9ja1bQXv9LWKP88IXqe7uG1/McVnfU
+8PojKf9YDfffRvl/1vB+XKV6ttVSveemYMNILefP60LeH7U8XgHs3WGk/Vh6
+DwfTjZy/C5ZeG6m/1A97loyUN/gEDmyt4/MxCqu1wkm5oiLjsLaojudfg/0L
+offzsCrSJOvmyqL6xsK7kV9j4vlm8d5w3UTtSxcpv9PE80/Dcep6qv/XWPTX
+H6/n+bSwVCA84fP5zkzCHpuwMv3jD3BgsJ73/y1cfNTM+/EGduWb+XwaYb9F
+2C2O94wEqwbMlD8jj/IHzDy/F/ZeauD1WeFgg3CsckBp/XEvGvg+PIX134RP
+ig4pVF8pvJHzUnt1vXCJEjAC42k9jVT/KR3ln22k9fo8aO/a0CTrlPhRqZQ/
+pYnXWw4bnjVx3irYMRPyAuVfZ+H5P1P+AxY+X5t6kP+ihc/PEtVzzcL9ZVid
+1Ez38dFGtNeeb+bvwwDlrQx5meq52szrS0D71AQrr+cybNBbeXwz7Ciz0n0J
+q4C9bivvz0tYH2/j+nfD0lkb5x+BPfdsfH+ofaDLxutph9U+G+1Xmht2Zdr5
++9EL++/aOc8QrOoMeZTyj9tpPfGzlH/FzudlGg6WOLj9J6pnu4PzTFL+UQf3
+5/zBUPtayh/tpP19MAUXDzt5f4+5kXfZyfXMg/3bW7h/BKxKb+H67IUd3haq
+X84p2LvYwt+LO3AwqpW/j+1w3IlWHq8f1t9o5fmcbu1/iKFmjg==
+      "]]}}, {{}, {}}},
+  AspectRatio->NCache[GoldenRatio^(-1), 0.6180339887498948],
+  Axes->{False, False},
+  AxesLabel->{None, None},
+  AxesOrigin->{3.8231136*^9, 1988.5572222222222`},
+  DisplayFunction->Identity,
+  Frame->{{True, True}, {True, True}},
+  FrameLabel->{{None, None}, {None, None}},
+  FrameTicks->FrontEndValueCache[{{Automatic, Automatic}, {
+      Charting`DateTicksFunction[Automatic, DateTicksFormat -> {Automatic}], 
+      Charting`DateTicksFunction[
+      Automatic, DateTicksFormat -> {Automatic}, "TickLabels" -> None]}}, {{
+     Automatic, Automatic}, {{{3.8211264*^9, 
+        FormBox[
+         StyleBox["\"Feb\"", 
+          Directive[], {}, StripOnInput -> False], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8235456*^9, 
+        FormBox[
+         StyleBox["\"Mar\"", 
+          Directive[], {}, StripOnInput -> False], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.826224*^9, 
+        FormBox[
+         StyleBox["\"Apr\"", 
+          Directive[], {}, StripOnInput -> False], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.828816*^9, 
+        FormBox[
+         StyleBox["\"May\"", 
+          Directive[], {}, StripOnInput -> False], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8314944*^9, 
+        FormBox[
+         StyleBox["\"Jun\"", 
+          Directive[], {}, StripOnInput -> False], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8340864*^9, 
+        FormBox[
+         StyleBox["\"Jul\"", 
+          Directive[], {}, StripOnInput -> False], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8367648*^9, 
+        FormBox[
+         StyleBox["\"Aug\"", 
+          Directive[], {}, StripOnInput -> False], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}}, {{3.8211264*^9, 
+        FormBox[
+         TemplateBox[{0., 0.}, "Spacer2"], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8235456*^9, 
+        FormBox[
+         TemplateBox[{0., 0.}, "Spacer2"], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.826224*^9, 
+        FormBox[
+         TemplateBox[{0., 0.}, "Spacer2"], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.828816*^9, 
+        FormBox[
+         TemplateBox[{0., 0.}, "Spacer2"], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8314944*^9, 
+        FormBox[
+         TemplateBox[{0., 0.}, "Spacer2"], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8340864*^9, 
+        FormBox[
+         TemplateBox[{0., 0.}, "Spacer2"], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}, {3.8367648*^9, 
+        FormBox[
+         TemplateBox[{0., 0.}, "Spacer2"], TraditionalForm], {
+        0.013888888888888888`, 0.}, 
+        Directive[]}}}}],
+  GridLines->{None, None},
+  GridLinesStyle->Directive[
+    GrayLevel[0.5, 0.4]],
+  Method->{
+   "NoShowPlotTheme" -> Automatic, "OptimizePlotMarkers" -> True, 
+    "OptimizePlotMarkers" -> True, 
+    "CoordinatesToolOptions" -> {"DisplayFunction" -> ({
+        Identity[
+         Part[#, 1]], 
+        Identity[
+         Part[#, 2]]}& ), "CopiedValueFunction" -> ({
+        Identity[
+         Part[#, 1]], 
+        Identity[
+         Part[#, 2]]}& )}},
+  PlotRange->{{3.8231136*^9, 3.8353824*^9}, {1988.5572222222222`, 2650.}},
+  PlotRangeClipping->True,
+  PlotRangePadding->{{
+     Scaled[0.02], 
+     Scaled[0.02]}, {
+     Scaled[0.05], 
+     Scaled[0.05]}},
+  Ticks->{{}, Automatic}]], "Output",
+ CellChangeTimes->{3.835500856661768*^9},
+ CellLabel->
+  "Out[170]=",ExpressionUUID->"b977c12a-bcf7-421a-a08f-d36aa98b2bc4"]
+}, Open  ]]
+},
+WindowSize->{808, 893},
+WindowMargins->{{Automatic, 405}, {61, Automatic}},
+FrontEndVersion->"12.2 for Linux ARM (32-bit) (March 25, 2021)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"b9a5090b-f878-4bd4-9d07-6e0f56436f82"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[558, 20, 881, 28, 75, "Input",ExpressionUUID->"403b311e-2757-45b6-ac48-6f0388b742e9"],
+Cell[CellGroupData[{
+Cell[1464, 52, 312, 7, 30, "Input",ExpressionUUID->"4bd8eac5-8733-40ad-ae6f-b9a9912d9775"],
+Cell[1779, 61, 5168, 124, 244, "Output",ExpressionUUID->"b977c12a-bcf7-421a-a08f-d36aa98b2bc4"]
+}, Open  ]]
+}
+]
+*)
+

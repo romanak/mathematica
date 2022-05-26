@@ -1,0 +1,445 @@
+(***********************************************************************
+
+                    Mathematica-Compatible Notebook
+
+This notebook can be used on any computer system with Mathematica 3.0,
+MathReader 3.0, or any compatible application. The data for the notebook 
+starts with the line of stars above.
+
+To get the notebook into a Mathematica-compatible application, do one of 
+the following:
+
+* Save the data starting with the line of stars above into a file
+  with a name ending in .nb, then open the file inside the application;
+
+* Copy the data starting with the line of stars above to the
+  clipboard, then use the Paste menu command inside the application.
+
+Data for notebooks contains only printable 7-bit ASCII and can be
+sent directly in email or through ftp in text mode.  Newlines can be
+CR, LF or CRLF (Unix, Macintosh or MS-DOS style).
+
+NOTE: If you modify the data for this notebook not in a Mathematica-
+compatible application, you must delete the line below containing the 
+word CacheID, otherwise Mathematica-compatible applications may try to 
+use invalid cache data.
+
+For more information on notebooks and Mathematica-compatible 
+applications, contact Wolfram Research:
+  web: http://www.wolfram.com
+  email: info@wolfram.com
+  phone: +1-217-398-0700 (U.S.)
+
+Notebook reader applications are available free of charge from 
+Wolfram Research.
+***********************************************************************)
+
+(*CacheID: 232*)
+
+
+(*NotebookFileLineBreakTest
+NotebookFileLineBreakTest*)
+(*NotebookOptionsPosition[     16947,        382]*)
+(*NotebookOutlinePosition[     18521,        431]*)
+(*  CellTagsIndexPosition[     18477,        427]*)
+(*WindowFrame->Normal*)
+
+
+
+Notebook[{
+Cell[TextData[{
+  StyleBox[
+  "readMe: Description of Neural Network Notebooks \nNotebook Version: 2.0\n\
+Steve Hunka, University of Alberta\nsteve.hunka@ualberta.ca\nMod. Date: Oct \
+31/97 V3.0 revision",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "\n\nThere are 9 Notebooks in this collection. Two Notebooks provide \
+documentation, and seven form a collection of functions for running a simple \
+back propagated neural network and analyzing its dynamic and final state \
+characteristics. These Notebooks are as follows:\n\n1. ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox[" Neural.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox["; holds the back propagated network functions\n2. ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox[" netCls.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "; holds functions for classifying exemplars (usually not in the training \
+set) and provides bar charts representing the output from the hidden layer \
+cells and output layer cells.\n3. ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox[" netAn1.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "; graphical representations of the error sqd at each output cell, and \
+responses from the hidden and output layer cells. Uses data from each \
+iteration for the error plot, and from each epoch for the plot of responses.\n\
+4.  ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["netAn2.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "; graphical representations of weights at the hidden and output layer \
+cells. Uses data from each epoch for plotting.\n5.  ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["netAn3.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "; graphical representations of hidden and output cell responses using bar \
+plots (as in netCls.nb) and density plots showing input attributes together \
+with hidden cell and output cell data at last epoch.\n6.  ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["netAn4.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "; provides functions for carrying out a singular value decomposition of \
+hidden cell response data as well as 2D and 3D plots. Last epoch data only \
+are used.\n7.  ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["netUtil.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  ";  is a Package containing the most commonly used functions for the  6 \
+Notebooks listed above. The user must do a save of this notebook to produce \
+the Package netUtil.m required for running with V3.0.\n\nThe Notebook ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["netUdoc.nb",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " contains documentation for the functions in netUtil.nb.\n                 \
+     \nEach Notebook contains documentation for those functions in the \
+Notebook.  Neural.nb also contains some test data referred to as the \"TCL\" \
+problem.  The TCL problem is a modification of the example problem J.A. \
+Freeman illustrates in his textbook Simulating Neural Networks with ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " , which requires the network to discriminate between the characters T and \
+C in different orientations, and to which the character L has been added.\n\n\
+",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Conversion of Notebooks from V2.2 to V3.0",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox["\n\nIn converting from Version 2.2 to Version 3.0 of ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " the following changes occurred or were explicitly made:\n1)  Comments \
+were removed by the conversion process. Some, but not all comments were \
+replaced.\n2) FileNames[fname} now returns file names prepended with a colon. \
+Functions rcvrExpr, rprtFdata and getFdata in netUtil were modifided to \
+accommodate this change.\n3)  The plotting function ScatterPlot3D in V3.0 \
+returns a directive GrayLevel[0] not in V2.2 resulting in incorrect indexes \
+in modification of the graphic object by function splt3d in Notebooks netAn1 \
+and netAn2. Indexing was modified for V3.0.\n4) If the result of $RandomState \
+saved by option in running the simulation function bpnn in Notebook Neural is \
+done using V2.2 it cannot be used in V3.0. Thus,  a simulation run in V2.2 \
+cannot be recreated in V3.0, and for this reason the numerical values \
+obtained by using V3.0 are different than those using V2.0 although \
+acceptable convergence was obtained in both cases.(A preferred method may be \
+to ask the user for a seed n, saving this value, and then use SeedRandom[n] \
+to recreate a simulation.) \n5)  The function mplotLists in Notebook netAn2 \
+in V2.2 removed the plotting symbol by manipulating the graphic object \
+produced by MultipleListPlot. The option SymbolShape->None is now used.\n\n",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Development of the Notebooks",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox["\n\nAll the functions were developed using ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " version 2.2 on a Macintosh 6100/60 and 7200/120, and then revised for \
+Version 3.0.1.1x on a Macintosh 7200/120.  The larger sized runs of the \
+Neural.nb functions have used 1144 input cells, 12 hidden cells, and 18 \
+output cells. \n\n",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Using the Notebooks",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "\n\nThe Package netUtil.nb when used with Version 3.0 must be first saved \
+by the user to produce netUtil.m so that its functions can be loaded in the \
+Notebooks.  Some Notebooks require additional Packages supplied by ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  ", and in this case these are documented in each Notebook. Normally, one \
+would use Neural.nb first, and then depending upon the type of analysis \
+wanted of either the dynamic or final state characteristics of the network, \
+use the other Notebooks. \n\nThe Notebook netUtil.nb, although written as a ",
+    
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " Package, is not in the programming style of Packages supplied by ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " since the user is not normally expected to call the functions directly, \
+except in the case of the functions rcvrExpr, rprtFdata, and saveExpr. Since \
+almost all functions are written for interactive user input of parameters, \
+checking of arguments is made before the functions in netUtil are called. \
+netUdoc.nb contains documentation of the functions in netUtil.nb. \n\n",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Displayed Results",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "\n\nResults of computations displayed to the user's screen may be more \
+extensive than usually expected.  This has been done to provide the user with \
+additional information confirming that, for example, calculations appear \
+reasonable, and that the appropriate data file is being used. \n\n",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Files Written",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "\n\nUser options are provided for writing a number of data sets to a file \
+during the running of Neural.nb : (a) saving of the result of $RandomState, \
+(b) saving the squared error at each iteration, (c) saving the responses and \
+weights at the hidden and output layer at each epoch, and (d) saving the \
+random seed and last epoch data. When data is extensive, it is much faster to \
+obtain last epoch data from (d) than from (c).  Functions in Notebook netAn1 \
+require error and epoch data, i.e., items (b and c). Functions in Notebook \
+netAn2 requires item (c).  Functions in netAn3 and netAn4 require data of the \
+last epoch. Writing to files as in (c) adds to the run time of the \
+simulation. (Hidden and output cell weights for the last epoch are also \
+returned by the function bpnn in Neural.nb). The user may wish to set a \
+specific file path for files written.\n\n",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Keeping Accurate Records",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "\n\nExperience suggests that users must keep accurate records of the files \
+they create if data are to be recovered reliably at some future date.  \
+Keeping a log of the runID, date time stamps, and associated file names is \
+important together with information about the simulation such as the nature \
+of the exemplars, number of input, hidden, and output cells. (runID is a user \
+input in the function bpnn in Neural.nb, but the date time stamp is generated \
+automatically and displayed.) If the user saves a number of ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " expressions, such as $RandomState for several runs of the simulator, to a \
+file (using the function saveExpr), the function rprtFdata can be used to \
+provide a summary of the file contents. \n\n\n",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Cautions",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "\n\nChecking Parameter Integrity: The interactive keyboard input functions \
+check for the structure of the input, but there are many combinations of \
+options that a user might attempt to use.  It is likely all possible \
+combinations have not been tested.  Obvious illogical input errors are not \
+checked, e.g., 0 input cells, 0 hidden cells, and 0 output cells.\n\nExemplar \
+Presentation Order:  The graphical analysis Notebooks assume that a fixed \
+order (not random order) of exemplars has been used in Neural.nb. \n\nAmount \
+of Data Generated:  The amount of data generated and which could be saved in \
+files by Neural.nb could be very extensive depending upon the number of \
+iterations, epochs, and number of cells used. For example, having thousands \
+of input cells, run for 200 or 300 epochs with just a few exemplars could \
+generate a hidden cell weight file of 20MB or more.  Any graphical analysis \
+of the dynamic characteristics of the network requiring plotting from such a \
+large file, would require extensive amounts of RAM allocated to the ",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " front end and kernel. Generally, the problem is not as severe when only \
+the final state data of the network is used, however, being congnizant of the \
+number of plots which may result is important.   \n\n\n",
+    CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  CellMargins->{{Inherited, 162}, {Inherited, Inherited}},
+  Evaluatable->False,
+  AspectRatioFixed->True]
+},
+FrontEndVersion->"Macintosh 3.0",
+ScreenRectangle->{{0, 640}, {0, 460}},
+PrintingStyleEnvironment->"Working",
+WindowToolbars->{},
+CellGrouping->Manual,
+WindowSize->{520, 365},
+WindowMargins->{{20, Automatic}, {Automatic, 31}},
+PrintingCopies->1,
+PrintingPageRange->{1, Automatic},
+PageHeaders->{{Cell[ 
+        TextData[ {
+          CounterBox[ "Page"]}], "PageNumber"], Inherited, Cell[ 
+        TextData[ {
+          ValueBox[ "FileName"]}], "Header"]}, {Cell[ 
+        TextData[ {
+          ValueBox[ "FileName"]}], "Header"], Cell[ 
+        TextData[ {
+          ValueBox[ "Date"], "/", 
+          ValueBox[ "Time"]}], "Header"], Cell[ 
+        TextData[ {
+          CounterBox[ "Page"]}], "PageNumber"]}},
+PrivateNotebookOptions->{"ColorPalette"->{RGBColor, -1}},
+ShowCellLabel->True,
+ShowCellTags->False,
+RenderingOptions->{"ObjectDithering"->True,
+"RasterDithering"->False},
+MacintoshSystemPageSetup->"\<\
+00<0004/0B`000002n88o?moogl<H`Ue0fL5:0?l0080004/0B`000000]P2:001
+0000I00000400`<300000BL?00400@>N]:0000000000060801T1T00000000000
+00000000000000000000000000000000\>"
+]
+
+
+(***********************************************************************
+Cached data follows.  If you edit this Notebook file directly, not using
+Mathematica, you must remove the line containing CacheID at the top of 
+the file.  The cache data will then be recreated when you save this file 
+from within Mathematica.
+***********************************************************************)
+
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+
+(*NotebookFileOutline
+Notebook[{
+Cell[1709, 49, 15234, 331, 2730, "Text",
+  Evaluatable->False]
+}
+]
+*)
+
+
+
+
+(***********************************************************************
+End of Mathematica Notebook file.
+***********************************************************************)
+

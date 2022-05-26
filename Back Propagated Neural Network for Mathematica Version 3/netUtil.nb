@@ -1,0 +1,395 @@
+(***********************************************************************
+
+                    Mathematica-Compatible Notebook
+
+This notebook can be used on any computer system with Mathematica 3.0,
+MathReader 3.0, or any compatible application. The data for the notebook 
+starts with the line of stars above.
+
+To get the notebook into a Mathematica-compatible application, do one of 
+the following:
+
+* Save the data starting with the line of stars above into a file
+  with a name ending in .nb, then open the file inside the application;
+
+* Copy the data starting with the line of stars above to the
+  clipboard, then use the Paste menu command inside the application.
+
+Data for notebooks contains only printable 7-bit ASCII and can be
+sent directly in email or through ftp in text mode.  Newlines can be
+CR, LF or CRLF (Unix, Macintosh or MS-DOS style).
+
+NOTE: If you modify the data for this notebook not in a Mathematica-
+compatible application, you must delete the line below containing the 
+word CacheID, otherwise Mathematica-compatible applications may try to 
+use invalid cache data.
+
+For more information on notebooks and Mathematica-compatible 
+applications, contact Wolfram Research:
+  web: http://www.wolfram.com
+  email: info@wolfram.com
+  phone: +1-217-398-0700 (U.S.)
+
+Notebook reader applications are available free of charge from 
+Wolfram Research.
+***********************************************************************)
+
+(*CacheID: 232*)
+
+
+(*NotebookFileLineBreakTest
+NotebookFileLineBreakTest*)
+(*NotebookOptionsPosition[     16795,        331]*)
+(*NotebookOutlinePosition[     18402,        381]*)
+(*  CellTagsIndexPosition[     18358,        377]*)
+(*WindowFrame->Normal*)
+
+
+
+Notebook[{
+Cell[BoxData[{
+    \(BeginPackage["\<netUtil`\>"]\), 
+    \(kbin3::"\<usage\>" = "\<Keyboard input of numeric values.\>"\), 
+    \(kbinstrg::"\<usage\>" = "\<Keyboard input of string response.\>"\), 
+    \(inpvec::"\<usage\>" = 
+      "\<Keyboard input of vector of elements and check range.\>"\), 
+    \(pmat2::"\<usage\>" = "\<display matrix to screen.\>"\), 
+    \(genrch::"\<usage\>" = "\<generate row/col headings for pmat2.\>"\), 
+    \(rndoff::"\<usage\>" = "\<round off function.\>"\), 
+    \(plotnLists::"\<usage\>" = "\<plot columns of matrix.\>"\), 
+    \(plotLegend::"\<usage\>" = "\<plot color line legend.\>"\), 
+    \(getFdata::"\<usage\>" = "\<get data from a file.\>"\), 
+    \(timeDate::"\<usage\>" = "\<prints date and time.\>"\), 
+    \(openFna::"\<usage\>" = "\<opens a file.\>"\), 
+    \(rcvrExpr::"\<usage\>" = "\<recovers data from a file.\>"\), 
+    \(rprtFdata::"\<usage\>" = "\<reports contents of data in a file.\>"\), 
+    \(saveExpr::"\<usage\>" = "\<saves an expression to a file.\>"\), 
+    \(Begin["\<`Private`\>"]\), 
+    \(kbin3[q_, p_] := 
+      Module[{c, ans, vrp, vrp2}, c = 0; 
+        vrp = "\< Input Error. Type a vector with # elements=\>"; 
+        vrp2 = "\< Input Error. Type a matrix of order \>"; 
+        While[c == 0, ans = Input[q]; 
+          Which[Head[ans] === Symbol, 
+            \(Print[ans, "\< Input Error; Characters not allowed\>"]; \), 
+            Head[p] === Integer || Head[p] === Real, 
+            \(If[Head[p] =!= Head[ans], 
+              \(Print[ans, "\< Input Error. Input must be \>", Head[p]]; \), 
+              c = 1]; \), Head[p] === List && Length[p] == 1, 
+            \(If[VectorQ[ans] == False, \(Print[ans, vrp<>ToString[p]]; \), 
+              If[Length[ans] \[NotEqual] First[p], 
+                \(Print[ans, "\< Error: Vector requires # of elements=\>", 
+                  First[p]]; \), c = 1]]; \), 
+            Head[p] === List && Length[p] == 2, 
+            \(If[MatrixQ[ans] == False, \(Print[ans, vrp2<>ToString[p]]; \), 
+              If[Dimensions[ans] \[NotEqual] p, 
+                \(Print[ans, "\< Error; Matrix dimensions must be \>", p]; 
+                \), c = 1]]; \)]; ]; Return[ans]; ]\), 
+    \(kbinstrg[q_, p_] := 
+      Module[{c, ans}, c = 0; 
+        While[c == 0, ans = InputString[q]; 
+          Do[\(If[{ans} == p\[LeftDoubleBracket]j\[RightDoubleBracket], 
+              c = 1; Break[]]; \), {j, 1, Length[p]}]; 
+          If[c \[NotEqual] 1, Print[ans, "\< Input Error. Type Again\>"]]; ]; 
+        Return[ans]; ]\), 
+    \(inpvec[r_, n_, ty_] := 
+      Module[{q, selv, rng}, q = "\<Type  element vector of  indices.\>"; 
+        q = StringInsert[StringInsert[q, ToString[n], 6], ty, \(-10\)]; 
+        rng = False; 
+        While[rng == False, selv = kbin3[q, {n}]; 
+          If[Max[selv] > Max[r] || Min[selv] < Min[r], 
+            Print[selv, "\<:Vector elements out of range\>"], rng = True]; ]; 
+        Return[selv]; ]\), 
+    \(pmat2[m_, pc_, rch___] := 
+      Module[{m1, a, c, indx, col1, row}, m1 = Transpose[m]; 
+        c = \(Dimensions[m1]\)\[LeftDoubleBracket]1\[RightDoubleBracket]; 
+        a = Floor[c\/pc]; indx = Join[Table[pc, {a}], {Mod[c, pc]}]; 
+        If[0 == indx\[LeftDoubleBracket]\(-1\)\[RightDoubleBracket], 
+          indx = Drop[indx, \(-1\)]]; 
+        If[Length[{rch}] == 0, 
+          row = \((ToString[#1]&)\)/@
+              Range[\(Dimensions[m]\)\[LeftDoubleBracket]1
+                  \[RightDoubleBracket]]; 
+          \(col1 = 
+            \((ToString[#1]&)\)/@
+              Range[\(Dimensions[m]\)\[LeftDoubleBracket]2
+                  \[RightDoubleBracket]]; \), 
+          row = rch\[LeftDoubleBracket]1\[RightDoubleBracket]; 
+          col1 = rch\[LeftDoubleBracket]2\[RightDoubleBracket]; ]; 
+        Do[Print["\<\>"]; 
+          Print[TableForm[
+              Transpose[
+                Take[m1, indx\[LeftDoubleBracket]j\[RightDoubleBracket]]], 
+              TableHeadings \[Rule] 
+                Append[{row}, 
+                  Take[col1, 
+                    indx\[LeftDoubleBracket]j\[RightDoubleBracket]]], 
+              TableSpacing \[Rule] {0, 4}]]; 
+          m1 = Drop[m1, indx\[LeftDoubleBracket]j\[RightDoubleBracket]]; 
+          \(col1 = 
+            Drop[col1, indx\[LeftDoubleBracket]j\[RightDoubleBracket]]; 
+          \), {j, 1, Length[indx]}]; ]\), 
+    \(genrch[rh_, ch_, rc_] := 
+      Module[{a, b, ab}, fn[a_, b_] := StringInsert[a, ToString[b], \(-1\)]; 
+        a = Table[rh, {rc\[LeftDoubleBracket]1\[RightDoubleBracket]}]; 
+        a = 
+          \((fn[a\[LeftDoubleBracket]#1\[RightDoubleBracket], #1]&)\)/@
+            Range[rc\[LeftDoubleBracket]1\[RightDoubleBracket]]; 
+        b = Table[ch, {rc\[LeftDoubleBracket]2\[RightDoubleBracket]}]; 
+        b = \((fn[b\[LeftDoubleBracket]#1\[RightDoubleBracket], #1]&)\)/@
+            Range[rc\[LeftDoubleBracket]2\[RightDoubleBracket]]; 
+        ab = Join[{a}, {b}]; Return[ab]; ]\), 
+    \(rndoff[n_, d_] := N[10\^\(-d\)\ Round[n\ 10\^d]]\), 
+    \(plotnLists[m_, tl_, xu_, ps_, pm_, pn_:  0] := 
+      Module[{pobj, colr, ipt, cntr = 0}, 
+        If[ps == 0 && pm == 0, Print["\<Parameter error;no plot\>"]; 
+          Return[]]; pobj = {}; 
+        colr = { .5,  .0,  .5,  .0,  .0,  .0,  .0,  .0, 1. ,  .0, 
+            1. ,  .0,  .0, 1. , 1. , 1. ,  .0,  .0, 1. ,  .0, 1. , 1. , 
+            1. ,  .0,  .0,  .0,  .5,  .0,  .5,  .0,  .0,  .5,  .5,  .5,  .0, 
+             .0}; If[ps == 1, ipt = $DisplayFunction, ipt = Identity]; 
+        pobj = MapThread[
+            ListPlot[#1, AxesLabel \[Rule] {xu, "\<y\>"}, 
+                PlotJoined \[Rule] True, PlotRange \[Rule] All, 
+                PlotLabel \[Rule] 
+                  StringInsert[tl, ToString[cntr = cntr + 1], 1], 
+                PlotStyle 
+                  \[Rule] {
+                    RGBColor[
+                      \((colr = RotateLeft[colr, 3])\)\[LeftDoubleBracket]1
+                        \[RightDoubleBracket], 
+                      colr\[LeftDoubleBracket]2\[RightDoubleBracket], 
+                      colr\[LeftDoubleBracket]3\[RightDoubleBracket]]}, 
+                DisplayFunction \[Rule] ipt]&, {Transpose[m]}]; 
+        If[pn == 1, 
+          \(MapThread[
+            AppendTo[pobj\[LeftDoubleBracket]#1, 1\[RightDoubleBracket], 
+                Text[#1, 
+                  Last[pobj\[LeftDoubleBracket]#1, 1, 2, 1
+                      \[RightDoubleBracket]]]]&, {
+              Range[Length[Transpose[m]]]}]; \)]; 
+        If[pm == 1, 
+          Show[pobj, PlotLabel \[Rule] tl, 
+            DisplayFunction \[Rule] $DisplayFunction]]; ]\), 
+    \(\(plotLegend[nl_] := 
+      Module[{pobj, m, colr, nlm}, pobj = {}; 
+        colr = { .5,  .0,  .5,  .0,  .0,  .0,  .0,  .0,  .0,  .0,  .0, 
+            1. ,  .0, 1. ,  .0,  .0, 1. , 1. , 1. ,  .0,  .0, 1. ,  .0, 1. , 
+            1. , 1. ,  .0,  .0,  .0,  .5,  .0,  .5,  .0,  .0,  .5,  .5,  .5, 
+             .0,  .0}; If[nl > 12, nlm = 12, nlm = nl]; 
+        If[nl \[LessEqual] 1, Return[]]; 
+        m = Transpose[Table[Range[0, nlm], {2}]]; 
+        pobj = MapThread[
+            ListPlot[#1, AxesLabel \[Rule] {None, "\<Line\>"}, 
+                Ticks \[Rule] {None, Range[\(-1\) + \((nlm + 1)\)]}, 
+                PlotJoined \[Rule] True, PlotRange \[Rule] All, 
+                PlotStyle 
+                  \[Rule] {
+                    RGBColor[
+                      \((colr = RotateLeft[colr, 3])\)\[LeftDoubleBracket]1
+                        \[RightDoubleBracket], 
+                      colr\[LeftDoubleBracket]2\[RightDoubleBracket], 
+                      colr\[LeftDoubleBracket]3\[RightDoubleBracket]]}, 
+                DisplayFunction \[Rule] Identity]&, {m}]; 
+        Show[pobj, PlotLabel \[Rule] "\<Legend\>", 
+          DisplayFunction \[Rule] $DisplayFunction]; ]; \)\), 
+    \(getFdata := 
+      Module[{fname, ok, data, extnt, strt, end}, ok = 0; 
+        While[ok == 0, fname = InputString["\<Type name of file\>"]; 
+          If[fname == "\<quit\>", Return[{0, 0}]]; 
+          If[1 == Length[FileNames[fname]], Print[fname, "\< was found\>"]; 
+            \(ok = 1; \), Print[fname, "\< was not found\>"]]; ]; 
+        Print["\<File created:\>"]; timeDate[FileDate[fname]]; 
+        extnt = kbinstrg[
+            "\<Use all or part of data file? (all/part)\>", {{"\<all\>"}, {
+                "\<part\>"}}]; Print["\<Data read from file=\>", extnt]; 
+        If[extnt == "\<all\>", data = ReadList[fname]; 
+          \(extnt = {1, 
+              \(Dimensions[data]\)\[LeftDoubleBracket]1
+                \[RightDoubleBracket]}; \), 
+          strt = kbin3["\<Type starting position\>", 0]; 
+          end = kbin3["\<Type ending position\>", 0]; OpenRead[fname]; 
+          Skip[fname, Expression, strt]; 
+          data = ReadList[fname, Expression, 1 + end - strt]; Close[fname]; 
+          Print["\<Data requested from file=\>", strt, "\< to \>", end]; 
+          extnt = ToString[Join[{strt}, {end}]]; ]; 
+        Print["\<Returned data dimension=\>", Dimensions[data]]; 
+        Return[{data, extnt}]; ]\), 
+    \(timeDate[ts_] := 
+      Module[{month}, 
+        month = {{"\<Jan \>"}, {"\<Feb \>"}, {"\<Mar \>"}, {"\<Apr \>"}, {
+              "\<May \>"}, {"\<Jun \>"}, {"\<Jul \>"}, {"\<Aug \>"}, {
+              "\<Sep \>"}, {"\<Oct \>"}, {"\<Nov \>"}, {"\<Dec \>"}}; 
+        Print[\(month
+              \[LeftDoubleBracket]ts\[LeftDoubleBracket]2
+                \[RightDoubleBracket]\[RightDoubleBracket]\)\
+\[LeftDoubleBracket]1\[RightDoubleBracket], 
+          ts\[LeftDoubleBracket]3\[RightDoubleBracket], "\<,\>", 
+          ts\[LeftDoubleBracket]1\[RightDoubleBracket], "\< at \>", 
+          ts\[LeftDoubleBracket]4\[RightDoubleBracket], "\<:\>", 
+          ts\[LeftDoubleBracket]5\[RightDoubleBracket]]; ]\), 
+    \(openFna[fc_, p_] := 
+      Module[{ques, ans, ans1, fn, name, indx}, fn = {}; 
+        ques = "\<Setup file for  ? y/n\>"; 
+        Do[ans = 
+            kbinstrg[
+              StringInsert[ques, 
+                \(\(fc\[LeftDoubleBracket]j
+                      \[RightDoubleBracket]\)\[LeftDoubleBracket]2
+                    \[RightDoubleBracket]\)\[LeftDoubleBracket]1
+                  \[RightDoubleBracket], \(-6\)], {{"\<y\>"}, {"\<n\>"}}]; 
+          If[ans == "\<y\>", ans1 = "\<n\>"; 
+            While[ans1 == "\<n\>", 
+              name = InputString[
+                  StringInsert["\<Give a file name for \>", 
+                    \(\(fc\[LeftDoubleBracket]j
+                          \[RightDoubleBracket]\)\[LeftDoubleBracket]2
+                        \[RightDoubleBracket]\)\[LeftDoubleBracket]1
+                      \[RightDoubleBracket], \(-1\)]]; 
+              If[1 == Length[FileNames[name]], 
+                Print[name, "\< already exists\>"]; 
+                ans1 = kbinstrg[
+                    "\<Continue with this choice? y/n\>", {{"\<y\>"}, {
+                        "\<n\>"}}], ans1 = "\<y\>"]; ]; 
+            indx = \(fc\[LeftDoubleBracket]j
+                  \[RightDoubleBracket]\)\[LeftDoubleBracket]1
+                \[RightDoubleBracket]; fn = Append[fn, Append[{indx}, name]]; 
+            If[p == 0, OpenRead[name]]; If[p == 1, OpenWrite[name]]; 
+            If[p == 2, OpenAppend[name]]; If[p == 3, OpenTemporary[name]]; ]; 
+          \(If[ans == "\<y\>", 
+              Print["\<file for\>", 
+                fc\[LeftDoubleBracket]j\[RightDoubleBracket], "\< is \>", 
+                name]];\), {j, 1, Length[fc]}]; Return[fn]; ]\), 
+    \(rcvrExpr[rid___, rds_:  0] := 
+      Module[{ans, fname, ok = 0, expr, d, sw = 0}, 
+        If[Length[{rid}] \[NotEqual] 0, 
+          \(If[False === StringQ[rid], 
+            Print["\<arg error:first arg must be string\>"]; Return[]]; \)]; 
+        If[False === IntegerQ[rds], 
+          Print["\<arg error:2nd arg must be integer\>"]; Return[]]; 
+        While[ok == 0, fname = InputString["\<Type name of file\>"]; 
+          If[fname == "\<quit\>", Return[]]; 
+          If[1 == Length[FileNames[fname]], 
+            Print[fname, "\< file was found\>"]; \(ok = 1; \), 
+            Print[fname, "\< file was not found\>"]]; ]; 
+        Print["\<File created on:\>"]; timeDate[FileDate[fname]]; 
+        If[rds == 0, \(ans = "\<last\>"; \), ans = "\<search\>"]; 
+        Print["\<Expression recovery=\>", ans]; 
+        If[ans == "\<last\>", d = Get[fname]; 
+          expr = d\[LeftDoubleBracket]3\[RightDoubleBracket]; 
+          Print["\<Recovered Expr id=\>", 
+            d\[LeftDoubleBracket]1\[RightDoubleBracket], "\<,\>", 
+            d\[LeftDoubleBracket]2\[RightDoubleBracket]]; Return[expr]; ]; 
+        Print["\<Searching for \>", rid, "\<,\>", rds]; OpenRead[fname]; 
+        While[sw == 0, d = Read[fname, Expression]; 
+          If[d === EndOfFile, Break[]]; 
+          If[d\[LeftDoubleBracket]1\[RightDoubleBracket] == rid && 
+              d\[LeftDoubleBracket]2\[RightDoubleBracket] == rds, 
+            expr = d\[LeftDoubleBracket]3\[RightDoubleBracket]; sw = 1; 
+            Close[fname]; Print["\<Expression Found\>"]; ]; ]; 
+        If[sw == 0, Print["\<Search Failed\>"]; Return[]]; Return[expr]; ]
+        \), 
+    \(rprtFdata := 
+      Module[{fname, ok, eof, data, cnt}, cnt = 1; ok = 0; 
+        While[ok == 0, fname = InputString["\<Type name of file\>"]; 
+          If[fname == "\<quit\>", Return[]]; 
+          If[1 == Length[FileNames[fname]], Print[fname, "\< was found\>"]; 
+            \(ok = 1; \), Print[fname, "\< was not found\>"]]; ]; 
+        Print["\<File created:\>"]; timeDate[FileDate[fname]]; 
+        OpenRead[fname]; eof = 0; 
+        While[eof == 0, data = Read[fname, Expression]; 
+          If[data === EndOfFile, \(Break[]; \), 
+            Print[cnt, "\< \>", 
+              data\[LeftDoubleBracket]1\[RightDoubleBracket], "\<,\>", 
+              data\[LeftDoubleBracket]2\[RightDoubleBracket], "\< Length=\>", 
+              Length[data\[LeftDoubleBracket]3\[RightDoubleBracket]], 
+              "\< Dimensions=\>", Dimensions[data], "\< Head=\>", 
+              Head[data]]; cnt += 1]; ]; Close[fname]; ]\), 
+    \(saveExpr[x_] := 
+      Module[{xid, xdt, fx, fi, xsin, y}, 
+        If[Length[x] == 0, Print["\<Expression has not been evaluated\>"]; 
+          Return[]]; Print["\<expression ok\>"]; 
+        xid = InputString["\<Type an ID for the expression\>"]; 
+        Print["\<Expression ID=\>", xid]; 
+        xdt = Plus@@\((Date[]\ Reverse[Table[10\^\(y\ 2\), {y, 0, 5}]])\); 
+        Print["\<Expression date-time stamp=\>", xdt]; fx = {{1, {xid}}}; 
+        fi = openFna[fx, 2]; 
+        If[Length[fi] \[NotEqual] 0, 
+          Print["\<Opened \>", \(fi[\([1]\)]\)[\([2]\)]]; 
+          xsin = Join[{xid}, {xdt}]; 
+          Write[\(fi\[LeftDoubleBracket]1
+                \[RightDoubleBracket]\)\[LeftDoubleBracket]2
+              \[RightDoubleBracket], Append[xsin, x]]; 
+          Close[\(fi\[LeftDoubleBracket]1
+                \[RightDoubleBracket]\)\[LeftDoubleBracket]2
+              \[RightDoubleBracket]]]; \n\t
+        Print["\<File written and closed\>"]]\), 
+    \(End[]\), 
+    \(EndPackage[]\)}], "Input",
+  InitializationCell->True,
+  AspectRatioFixed->True]
+},
+FrontEndVersion->"Macintosh 3.0",
+ScreenRectangle->{{0, 640}, {0, 460}},
+AutoGeneratedPackage->Automatic,
+PrintingStyleEnvironment->"Working",
+WindowToolbars->{},
+CellGrouping->Manual,
+WindowSize->{520, 365},
+WindowMargins->{{20, Automatic}, {Automatic, 31}},
+PrintingCopies->1,
+PrintingPageRange->{1, Automatic},
+PageHeaders->{{Cell[ 
+        TextData[ {
+          CounterBox[ "Page"]}], "PageNumber"], Inherited, Cell[ 
+        TextData[ {
+          ValueBox[ "FileName"]}], "Header"]}, {Cell[ 
+        TextData[ {
+          ValueBox[ "FileName"]}], "Header"], Cell[ 
+        TextData[ {
+          ValueBox[ "Date"], "/", 
+          ValueBox[ "Time"]}], "Header"], Cell[ 
+        TextData[ {
+          CounterBox[ "Page"]}], "PageNumber"]}},
+PrivateNotebookOptions->{"ColorPalette"->{RGBColor, -1}},
+ShowCellLabel->True,
+ShowCellTags->False,
+RenderingOptions->{"ObjectDithering"->True,
+"RasterDithering"->False},
+MacintoshSystemPageSetup->"\<\
+00<0004/0B`000002n88o?moogl<H`Ue0fL5:0?l0080004/0B`000000]P2:001
+0000I00000400`<300000BL?00400@>KF40000000000060801T1T00000000000
+00000000000000000000000000000000\>"
+]
+
+
+(***********************************************************************
+Cached data follows.  If you edit this Notebook file directly, not using
+Mathematica, you must remove the line containing CacheID at the top of 
+the file.  The cache data will then be recreated when you save this file 
+from within Mathematica.
+***********************************************************************)
+
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+
+(*NotebookFileOutline
+Notebook[{
+Cell[1709, 49, 15082, 280, 3479, "Input",
+  InitializationCell->True]
+}
+]
+*)
+
+
+
+
+(***********************************************************************
+End of Mathematica Notebook file.
+***********************************************************************)
+

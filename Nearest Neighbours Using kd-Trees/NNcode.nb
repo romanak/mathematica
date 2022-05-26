@@ -1,0 +1,3521 @@
+(***********************************************************************
+
+                    Mathematica-Compatible Notebook
+
+This notebook can be used on any computer system with Mathematica 3.0,
+MathReader 3.0, or any compatible application. The data for the notebook 
+starts with the line of stars above.
+
+To get the notebook into a Mathematica-compatible application, do one of 
+the following:
+
+* Save the data starting with the line of stars above into a file
+  with a name ending in .nb, then open the file inside the application;
+
+* Copy the data starting with the line of stars above to the
+  clipboard, then use the Paste menu command inside the application.
+
+Data for notebooks contains only printable 7-bit ASCII and can be
+sent directly in email or through ftp in text mode.  Newlines can be
+CR, LF or CRLF (Unix, Macintosh or MS-DOS style).
+
+NOTE: If you modify the data for this notebook not in a Mathematica-
+compatible application, you must delete the line below containing the 
+word CacheID, otherwise Mathematica-compatible applications may try to 
+use invalid cache data.
+
+For more information on notebooks and Mathematica-compatible 
+applications, contact Wolfram Research:
+  web: http://www.wolfram.com
+  email: info@wolfram.com
+  phone: +1-217-398-0700 (U.S.)
+
+Notebook reader applications are available free of charge from 
+Wolfram Research.
+***********************************************************************)
+
+(*CacheID: 232*)
+
+
+(*NotebookFileLineBreakTest
+NotebookFileLineBreakTest*)
+(*NotebookOptionsPosition[    131347,       3344]*)
+(*NotebookOutlinePosition[    132400,       3378]*)
+(*  CellTagsIndexPosition[    132356,       3374]*)
+(*WindowFrame->Normal*)
+
+
+
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[TextData[
+"Nearest Neighbours Using k-d Trees"], "Title",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"This program calculates the set of nearest neighbours for each point in the \
+input data set using the algorithm descibed in[1]. A k-d tree is built from \
+the data set in O(n log n) time which allows the computation of the nearest \
+neighbours for a particular query point in O(log n) time."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[CellGroupData[{
+
+Cell[TextData["Reading In The Data"], "Section",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"First the preliminaries - reading the data file. The following assumes a \
+file format of\n \"<input 1> <input 2> ... <input n>, <output 1> ... <output \
+n>,\", which allows multiple inputs and outputs:"], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData["filename = \"Math/Gamma/hen100.asc\";"], "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"filedata = Partition[ReadList[filename, Word, \n            RecordLists -> \
+True,\n            WordSeparators -> {\" \"},\n            RecordSeparators \
+-> {\",\", \"\\n\"}], 2];\n(* WARNING USING THIS SYNTAX IS CONVENIENT BUT THE \
+RESULTS\n * ARE STRINGS NOT NUMBERS. TO FIX THIS WE DO THE FOLLOWING\n *)\n\
+data = Map[ToExpression, filedata];"], "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"This package usefully provides all the statistical tools needed"], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData["Needs[\"Statistics`DescriptiveStatistics`\"]"], "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"Now the data is ready to use. It can be seen that the data consists of a \
+list of input-output pairs. The nearest neighbours calculation is only to be \
+performed on the input set, so the output set can be removed to simplify \
+future processing. The following does this:"], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData["data = Table[data[[i]][[1]], {i, 1, Length[data]}];"], "Input",
+  AspectRatioFixed->True]
+}, Closed]],
+
+Cell[CellGroupData[{
+
+Cell[TextData["Constructing the kd-Tree"], "Section",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The next step is to build the k-d tree. This is done recursively using two \
+basic steps at each stage. First the dimension (or key) with the largest \
+spread of values over the records in this branch is found, and the median of \
+the record values for this dimension is found. Second, the data is \
+partitioned into two sets about the median previously found; the tree \
+building then continues with each of the smaller sets. The recursion halts \
+when the number of records to be processed falls below some preset value; the \
+records become a terminal or leaf node in the tree."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"In order to do this,  the representation of the tree structure in \
+Mathematica must be decided. At each non-terminal node, the dimension split \
+on and the associated median value are recorded, together with the left and \
+right branch of the recursively created subtrees. This leads to the \
+following:\n\n        Tree = Terminal Node |\n                {Dimension \
+Number, Partition Value, Left Tree, Right Tree}"], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"This is complicted somewhat by the need to return a list of {record index, \
+distance} pairs as the nearest neighbours for each node. As the tree-building \
+mechanism destroys the ordering of the nodes, the simplest way to retain each \
+node's index in the original list is to tag it with it. Each data point then \
+becomes a pair {value vector, index number}. "], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"In order to manipulate these without cluttering the code to much, a few data \
+access functions have been defined. Given a list of index-tagged data points, \
+\"getValueFor\" returns the value for dimension (d) at position (i) in the \
+list, \"getIndex\" returns the index for the record at position (i) and \
+\"getPoint\" returns the data vector (without index) for the record at \
+position (i)."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"getValueFor[in_, i_, d_] := in[[i]][[1]][[d]];\ngetIndex[in_, i_] := \
+in[[i]][[2]];\ngetPoint[in_, i_] := in[[i]][[1]];"], "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The following function is used to tag each point in the data set with its \
+index number. This is called before the tree is to be built:"], "Text",
+  Evaluatable->False,
+  PageBreakAbove->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"addIndex[data_] := Table[{data[[i]], i}, {i,1,Length[data]}];"], "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The following module is used to create the k-d tree. It needs to be passed \
+the data set and the dimensionality of the data (the variable \"k\"). The \
+local variable \"b\" controls the number of records in each terminal node  - \
+the default is 1, but the paper by Bentley[1] mentions that: \"... increasing \
+the bucket size from one record per bucket considerably improves the \
+performance of the search...\". The paper by White and Jain[2] mentions that \
+spliting the data on the dimension with the highest variance gives better \
+query performance, and this should also be faster to compute. It might be \
+interesting to compares these approaches."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[GraphicsData["PostScript", 
+"\<\
+As the data set is approximately halved at each stage, the time required \
+to build the k-d tree is O(n log n).\
+\>"], "Text",
+  Evaluatable->False,
+  PageBreakAbove->False,
+  PageBreakBelow->False,
+  AspectRatioFixed->True,
+  ImageCacheValid->False],
+
+Cell[TextData[
+"buildTree[k_, inData_]  := \n        Module[\n        (* \"b\" is the number \
+of records per bucket *)\n        {bucketsize = 1,  maxspread = 0, i, \
+dimension,\n         hi, low, thisHi, thisLow, medianval, pair, temp},\n      \
+   \n        If[Length[inData] <= bucketsize,\n                (* This is a \
+terminal node, so simply return the\n                 * list as it was passed \
+*)\n                Return[inData],\n                (* Find the dimension \
+with the largest spread *)\n                For[i = 1, i <= k, i++,\n         \
+               hi = -Infinity; low = Infinity;\n                        For \
+[j = 1, j <= Length[inData], j++,\n                                temp = \
+getValueFor[inData, j, i];\n                                If[hi < temp, hi \
+= temp, ];\n                                If[low > temp, low = temp, ]\n    \
+                    ];\n                        If[hi - low >= maxspread,\n   \
+                             maxspread = hi - low;\n                          \
+      thisHi = hi; thisLow = low;\n                                dimension \
+= i, ]\n                ];\n                \n                (* Extract \
+values at [dimension] and take median *)\n                medianval = \
+Median[Map[Part[Part[#,1],dimension]&,\n                                      \
+                  inData]];\n                                                 \
+       \n                (* If the median is the same as the hi or low values\
+\n                 * for the dimension, then repeated values must exist\n     \
+            * in the data set. Return the set without splitting\n             \
+    *)\n                If[thisLow == medianval || thisHi == medianval,\n     \
+                   Return[inData], \n                (* Else return the node \
+in the tree with the correct\n                 * subtrees *)\n                \
+        pair = split[dimension, medianval, inData];\n                        \
+Return[{dimension, medianval,\n                                buildTree[k, \
+First[pair]],\n                                buildTree[k, Last[pair]]}]\n   \
+             ]\n        ]\n];"], "Input",
+  PageBreakAbove->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The final conditional is necessary to deal correctly with data sets where  \
+one or vectors are equal. If a particular vecotr is repeated enough, it is \
+possible that the median can be\nskewed to the maximum or minium of the range \
+for the dimension. If this occurs, then the entire dataset is returned as a \
+terminal node - no partitioning is possible as one branch will become empty, \
+leading to an infinite loop."], "Text",
+  Evaluatable->False,
+  PageBreakBelow->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The following is used during the creation of the tree to split the records \
+around a particular value (v) for a particular dimension (d). It may be \
+quicker to do this \"in place\" in a programming language such as C."], "Text",\
+
+  Evaluatable->False,
+  PageBreakAbove->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"split[d_, v_, list_] := \n        Module[\n        {i, hi = {}, low = {}},\n \
+       For[i = 1, i <= Length[list], i++,\n                If \
+[getValueFor[list, i, d] >= v,\n                        hi = Append[hi, \
+list[[i]]],\n                        low = Append[low, list[[i]]]\n           \
+             ]\n        ];\n        Return[{low, hi}]\n];"], "Input",
+  AspectRatioFixed->True]
+}, Closed]],
+
+Cell[CellGroupData[{
+
+Cell[TextData["Finding the Nearest Neighbours"], "Section",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"Once the tree has been built, the task is then to search through it for the \
+nearest neighbours of each point. The module takes parameters for the query \
+vector to look for (query), the dimensionality of the data (k) and the \
+previously constructed k-d tree (tree). Several \"global\" variables are \
+used:\n        nearest:This is best set of nearest neighbours found at any \
+one point in the \n                search. I\.05t is a pair of lists, one for \
+the record indexes, the other for the\n                distances to the query \
+record - both lists are maintained in\n                increasing distance \
+from the query node.\n        lowerBounds:    This is the set of lower bounds \
+currently in use to define the \n                region being searched. There \
+is one for each dimension.\n        upperBounds:    These are the equivilent \
+set for the upper bounds on the\n                search region"], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The nearest neighbours are found by only searching those parts of the tree \
+which contain data points \"close\" to the query point. The distance to the \
+furthest nearest neighbour found so far and the size of the geometrical \
+region defined by the tree branches traversed previously are compared to \
+determine whether or not a branch should be examined. The comparison is \
+carried out in the \"boundsOverlapBall\" procedure."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The search can terminate whenever the \"ballWithinBounds\" test returns \
+True. Note that this test is not strictly required for the algorithm to work \
+correctly - it is only used to indicate that the solution has been found."], 
+  "Text",
+  Evaluatable->False,
+  PageBreakBelow->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"searchTree[query_, k_, tree_] :=\n        Module[\n        {medianval, \
+dimension, temp, i, distance, maxloc, maxdist},\n        \n        \
+Print[\"upper = \", upperBounds, \" lower = \", lowerBounds,\n                \
+\" tree = \", tree];\n        If[Not[NumberQ[tree[[1]]]], \n                \
+(* Node is terminal - update nearest neighbours *)\n                For[i = \
+1, i <= Length[tree], i++,\n                        (* Add points in bucket \
+if closer than furthest\n                         * found so far, so long as \
+this is not the query\n                         * record *)\n                 \
+       maxdist = Max[nearest[[2]]];\n                        distance = \
+norm[query - tree[[i]][[1]]];\n                        If [(distance < \
+maxdist) &&\n                                (query != getPoint[tree, i]),\n  \
+                              maxloc = Flatten[Position[nearest[[2]], \
+maxdist]][[1]];\n                                nearest[[1, maxloc]] = \
+getIndex[tree, i];\n                                nearest[[2, maxloc]] = \
+distance, ]\n                ];\n                (* Sort nearest neighbours \
+list *)\n                nearest = Transpose[Sort[Transpose[nearest],\n       \
+                                 (Part[#1, 2] < Part[#2, 2])&]];\n            \
+    \n                (* Check for termination and return *)\n                \
+If[ballWithinBounds[query, k],\n                        Print[\"**done**\"]; \
+Return[ ],\n                        Return[ ]],\n        ];\n        \n       \
+ (* Node not terminal - call searchTree recursively *)   \n        dimension \
+= tree[[1]];\n        medianval = tree[[2]];\n        (* Recursive call on \
+closer son *)\n        If[query[[dimension]] <= medianval,\n                \
+temp = upperBounds[[dimension]];\n                upperBounds[[dimension]] =  \
+medianval;\n                searchTree[query, k, tree[[3]]];\n                \
+upperBounds[[dimension]] = temp, \n        (* else *)\n                temp = \
+lowerBounds[[dimension]];\n                lowerBounds[[dimension]] = \
+medianval;\n                searchTree[query, k, tree[[4]]];\n                \
+lowerBounds[[dimension]] = temp\n        ];\n        \n        (* Recursive \
+call on further son if necessary *)\n        If[query[[dimension]] <= \
+medianval,\n                temp = lowerBounds[[dimension]];\n                \
+lowerBounds[[dimension]] = medianval;\n                \
+If[boundsOverlapBall[query, k],\n                        searchTree[query, k, \
+tree[[4]]],\n                ];\n                lowerBounds[[dimension]] = \
+temp,\n        (* else *)\n                temp = upperBounds[[dimension]];\n \
+               upperBounds[[dimension]] = medianval;\n                \
+If[boundsOverlapBall[query, k],\n                        searchTree[query, k, \
+tree[[3]]],\n                ];\n                upperBounds[[dimension]] = \
+temp\n        ];\n        \n        (* See if we should terminate *)\n        \
+If[ballWithinBounds[query, k],\n                Print[\"**done**\"]; Return[ \
+],\n                Return[ ]]      \n];\nnorm[x_] :=     N[Sqrt[x.x]];"], 
+  "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The following two procedures are used to guide the search process. \
+\"ballWithinBounds\" tests to see if the coordinate distance from the query \
+record to the closer boundary along each dimension is less than the radius of \
+the furthest nearest neighbour found so far. The test succeeds if all the \
+coordinate distances are greater than the radius."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"ballWithinBounds[query_, k_] := \n        Module[\n        {d},\n        For \
+[d = 1, d <= k, d++,\n                (* \"Last[nearest[[2]]]\" is the \
+furthest\n                 * nearest neighbour *)\n                If \
+[((query[[d]] - lowerBounds[[d]])^2 <=\n                                \
+Last[nearest[[2]]]) ||\n                        ((query[[d]] - \
+upperBounds[[d]])^2 <=\n                                Last[nearest[[2]]]),\n\
+                        Return[False],\n                ]\n        ];\n       \
+ Return[True]\n];"], "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The \"boundsOverlapBall\" procedure is used on backtracking to decide if it \
+is necessary to search down the opposite branch of the tree to the one \
+previously searched. It determines whether the geometric boundaries of the \
+subfile under consideration overlap a ball of radius equal to the distance of \
+the furthest nearest neighbour found so far. The smallest distance between \
+the query record and the bounded region is found - if this is less than the \
+radius, then the branch of the subtree can be eliminated, as there is no \
+overlap between the domain to be searched and the nearest neighbours."], 
+  "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"boundsOverlapBall[query_, k_] :=\n        Module[\n        {total = 0, d},\n \
+       (* \"Last[nearest[[2]]]\" is the furthest\n         * nearest \
+neighbour *)\n        For[d = 1, d <= k, d++,\n                If[query[[d]] \
+< lowerBounds[[d]],\n                        total = total + (query[[d]] - \
+lowerBounds[[d]])^2;\n                                If[total > \
+(Last[nearest[[2]]])^2,\n                                Return[False],\n     \
+                           (* else nothing *)\n                        ],\n   \
+             (* else *)\n                        If[query[[d]] > \
+upperBounds[[d]],\n                                total = total + \
+(query[[d]] - upperBounds[[d]])^2;\n                                If[total \
+> (Last[nearest[[2]]])^2,\n                                        \
+Return[False],\n                                        (* else nothing *)\n  \
+                              ],\n                        (* else nothing *)\n\
+                        ]\n                ]\n        ];\n        \
+Return[True]    \n];"], "Input",
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The following module initialises the global variables to be used in the \
+search. The number of nearest neighbours to be found is needed (numNearest), \
+as is the query record (query), so that the dimensionality of the data cen be \
+found. This initialisation must be repeated for each query point."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"(* Initialisations for globals *)\ninitialise[query_, numNearest_] :=\n      \
+  Module[\n        {},\n        nearest = {Table[-1, \
+{numNearest}],Table[Infinity, {numNearest}]};\n        upperBounds = \
+Table[Infinity, {Length[query]}];\n        lowerBounds = Table[-Infinity, \
+{Length[query]}]\n];"], "Input",
+  PageBreakAbove->False,
+  PageBreakBelow->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The following calculates the (numNearest) nearest neighbours of the input \
+data entered (data). As an example, the 30 nearest neighbours of the points \
+in \"data\" can be found by entering \"NNarray = nearestNeighbours[data, \
+30]\""], "Text",
+  Evaluatable->False,
+  PageBreakAbove->False,
+  PageBreakBelow->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"nearestNeighbours[inData_, numNearest_] :=\n        Module[\n        {tree, \
+query, indexedData, currentList = {}, i},\n        indexedData = \
+addIndex[inData];\n        Print[\"Building Search Tree...\"];\n        tree \
+= buildTree[Length[inData[[1]]], indexedData];\n        Print[\"Starting \
+Nearest Neighbour Search...\"];\n        For[i = 1, i <= Length[inData], i++,\
+\n                Print[\"Processing \", i];\n                query = \
+indexedData[[i]][[1]];\n                initialise[query, numNearest];\n      \
+          searchTree[query, Length[query], tree];\n                \
+currentList = Append[currentList, nearest]\n        ];\n        \
+Return[currentList]\n];"], "Input",
+  AspectRatioFixed->True]
+}, Closed]],
+
+Cell[CellGroupData[{
+
+Cell[TextData["Experimental Results"], "Section",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The algorithm above has been implemented in C, using long double arthimetic, \
+togther with an naive O(n^2) algorithm to provide a comparison. Both were run \
+initially on datafiles of sizes 100, 200, 400, 800, 1600 and 3200 \
+3-dimensional points. Further runs were carried out using bucket-sizes of 4 \
+and 8 on the same set of points. The results are presented below (in a fixed \
+height cell):"], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell["\<\
+n2 = {{8,8,8}, {27,27,27}, {101,102,103}, {387,387,386}, 
+        {1490, 1490, 1490}, {5887, 5888, 5884}};
+nlogn1 = {{8,8,8}, {16,16,16}, {34,34,34}, {67,67,67},
+        {145,145,146}, {290,289,290}};
+nlogn4 = {{6,6,6}, {12,12,12}, {27,27,27}, {55,55,55},
+        {120,120,121}, {241,241,241}};
+nlogn8 = {{6,6,6}, {12,12,12}, {26,26,26}, {53,53,53},
+        {116,116,117}, {234,233,233}};
+xs = {100, 200, 400, 800, 1600, 3200};
+n2bar = Transpose[{xs, Map[Mean, n2]}];
+nlogn1bar = Transpose[{xs, Map[Mean, nlogn1]}];
+nlogn4bar = Transpose[{xs, Map[Mean, nlogn4]}];
+nlogn8bar = Transpose[{xs, Map[Mean, nlogn8]}];
+p1 = ListPlot[n2bar, PlotJoined->True,
+        DisplayFunction->Identity,
+        AxesLabel->{\"(n)\", \"Time\"}];
+p2 = ListPlot[nlogn1bar, PlotJoined->True,
+        DisplayFunction->Identity,
+        AxesLabel->{\"(n)\", \"Time\"}];
+p3 = ListPlot[nlogn4bar, PlotJoined->True,
+        DisplayFunction->Identity,
+        AxesLabel->{\"(n)\", \"Time\"}];
+p4 = ListPlot[nlogn8bar, PlotJoined->True,
+        DisplayFunction->Identity,
+        AxesLabel->{\"(n)\", \"Time\"}];\
+\>", "Input",
+  AspectRatioFixed->True],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+a1 = Show[{p1, p2}, DisplayFunction->$DisplayFunction,
+        PlotLabel->\"kd-Tree compared to n^2\",
+        PlotRange->All,
+        Epilog->{Text[\"n^2\", {2500, 5000}],
+                Text[\"kd-tree\", {3000, 600}]}];\
+\>", "Input",
+  AspectRatioFixed->True],
+
+Cell[GraphicsData["PostScript", "\<\
+%!
+%%Creator: Mathematica
+%%AspectRatio: .61803 
+MathPictureStart
+%% Graphics
+/Courier findfont 10  scalefont  setfont
+% Scaling calculations
+-0.00691244 0.00030722 0.013914 0.000100131 [
+[(500)] .1467 .01391 0 2 Msboxa
+[(1000)] .30031 .01391 0 2 Msboxa
+[(1500)] .45392 .01391 0 2 Msboxa
+[(2000)] .60753 .01391 0 2 Msboxa
+[(2500)] .76114 .01391 0 2 Msboxa
+[(3000)] .91475 .01391 0 2 Msboxa
+[(\\(n\\))] 1.025 .01391 -1 0 Msboxa
+[(kd-Tree compared to n^2)] .5 .61803 0 -2 0 0 1 Mouter Mrotsboxa
+[(1000)] -0.01941 .11405 1 0 Msboxa
+[(2000)] -0.01941 .21418 1 0 Msboxa
+[(3000)] -0.01941 .31431 1 0 Msboxa
+[(4000)] -0.01941 .41444 1 0 Msboxa
+[(5000)] -0.01941 .51457 1 0 Msboxa
+[(6000)] -0.01941 .6147 1 0 Msboxa
+[(Time)] -0.00691 .61803 0 -4 Msboxa
+[(n^2)] .76114 .51457 0 0 Msboxa
+[(kd-tree)] .91475 .07399 0 0 Msboxa
+[ -0.00791 -0.001 0 0 ]
+[ 1.001 .61903 0 0 ]
+] MathScale
+% Start of Graphics
+1 setlinecap
+1 setlinejoin
+newpath
+[ ] 0 setdash
+0 g
+p
+p
+.002 w
+.1467 .01391 m
+.1467 .02016 L
+s
+P
+[(500)] .1467 .01391 0 2 Mshowa
+p
+.002 w
+.30031 .01391 m
+.30031 .02016 L
+s
+P
+[(1000)] .30031 .01391 0 2 Mshowa
+p
+.002 w
+.45392 .01391 m
+.45392 .02016 L
+s
+P
+[(1500)] .45392 .01391 0 2 Mshowa
+p
+.002 w
+.60753 .01391 m
+.60753 .02016 L
+s
+P
+[(2000)] .60753 .01391 0 2 Mshowa
+p
+.002 w
+.76114 .01391 m
+.76114 .02016 L
+s
+P
+[(2500)] .76114 .01391 0 2 Mshowa
+p
+.002 w
+.91475 .01391 m
+.91475 .02016 L
+s
+P
+[(3000)] .91475 .01391 0 2 Mshowa
+p
+.001 w
+.02381 .01391 m
+.02381 .01766 L
+s
+P
+p
+.001 w
+.05453 .01391 m
+.05453 .01766 L
+s
+P
+p
+.001 w
+.08525 .01391 m
+.08525 .01766 L
+s
+P
+p
+.001 w
+.11598 .01391 m
+.11598 .01766 L
+s
+P
+p
+.001 w
+.17742 .01391 m
+.17742 .01766 L
+s
+P
+p
+.001 w
+.20814 .01391 m
+.20814 .01766 L
+s
+P
+p
+.001 w
+.23886 .01391 m
+.23886 .01766 L
+s
+P
+p
+.001 w
+.26959 .01391 m
+.26959 .01766 L
+s
+P
+p
+.001 w
+.33103 .01391 m
+.33103 .01766 L
+s
+P
+p
+.001 w
+.36175 .01391 m
+.36175 .01766 L
+s
+P
+p
+.001 w
+.39247 .01391 m
+.39247 .01766 L
+s
+P
+p
+.001 w
+.4232 .01391 m
+.4232 .01766 L
+s
+P
+p
+.001 w
+.48464 .01391 m
+.48464 .01766 L
+s
+P
+p
+.001 w
+.51536 .01391 m
+.51536 .01766 L
+s
+P
+p
+.001 w
+.54608 .01391 m
+.54608 .01766 L
+s
+P
+p
+.001 w
+.5768 .01391 m
+.5768 .01766 L
+s
+P
+p
+.001 w
+.63825 .01391 m
+.63825 .01766 L
+s
+P
+p
+.001 w
+.66897 .01391 m
+.66897 .01766 L
+s
+P
+p
+.001 w
+.69969 .01391 m
+.69969 .01766 L
+s
+P
+p
+.001 w
+.73041 .01391 m
+.73041 .01766 L
+s
+P
+p
+.001 w
+.79186 .01391 m
+.79186 .01766 L
+s
+P
+p
+.001 w
+.82258 .01391 m
+.82258 .01766 L
+s
+P
+p
+.001 w
+.8533 .01391 m
+.8533 .01766 L
+s
+P
+p
+.001 w
+.88402 .01391 m
+.88402 .01766 L
+s
+P
+p
+.001 w
+.94547 .01391 m
+.94547 .01766 L
+s
+P
+p
+.001 w
+.97619 .01391 m
+.97619 .01766 L
+s
+P
+[(\\(n\\))] 1.025 .01391 -1 0 Mshowa
+p
+.002 w
+0 .01391 m
+1 .01391 L
+s
+P
+[(kd-Tree compared to n^2)] .5 .61803 0 -2 0 0 1 Mouter Mrotshowa
+p
+.002 w
+-0.00691 .11405 m
+-0.00066 .11405 L
+s
+P
+[(1000)] -0.01941 .11405 1 0 Mshowa
+p
+.002 w
+-0.00691 .21418 m
+-0.00066 .21418 L
+s
+P
+[(2000)] -0.01941 .21418 1 0 Mshowa
+p
+.002 w
+-0.00691 .31431 m
+-0.00066 .31431 L
+s
+P
+[(3000)] -0.01941 .31431 1 0 Mshowa
+p
+.002 w
+-0.00691 .41444 m
+-0.00066 .41444 L
+s
+P
+[(4000)] -0.01941 .41444 1 0 Mshowa
+p
+.002 w
+-0.00691 .51457 m
+-0.00066 .51457 L
+s
+P
+[(5000)] -0.01941 .51457 1 0 Mshowa
+p
+.002 w
+-0.00691 .6147 m
+-0.00066 .6147 L
+s
+P
+[(6000)] -0.01941 .6147 1 0 Mshowa
+p
+.001 w
+-0.00691 .03394 m
+-0.00316 .03394 L
+s
+P
+p
+.001 w
+-0.00691 .05397 m
+-0.00316 .05397 L
+s
+P
+p
+.001 w
+-0.00691 .07399 m
+-0.00316 .07399 L
+s
+P
+p
+.001 w
+-0.00691 .09402 m
+-0.00316 .09402 L
+s
+P
+p
+.001 w
+-0.00691 .13407 m
+-0.00316 .13407 L
+s
+P
+p
+.001 w
+-0.00691 .1541 m
+-0.00316 .1541 L
+s
+P
+p
+.001 w
+-0.00691 .17412 m
+-0.00316 .17412 L
+s
+P
+p
+.001 w
+-0.00691 .19415 m
+-0.00316 .19415 L
+s
+P
+p
+.001 w
+-0.00691 .2342 m
+-0.00316 .2342 L
+s
+P
+p
+.001 w
+-0.00691 .25423 m
+-0.00316 .25423 L
+s
+P
+p
+.001 w
+-0.00691 .27425 m
+-0.00316 .27425 L
+s
+P
+p
+.001 w
+-0.00691 .29428 m
+-0.00316 .29428 L
+s
+P
+p
+.001 w
+-0.00691 .33433 m
+-0.00316 .33433 L
+s
+P
+p
+.001 w
+-0.00691 .35436 m
+-0.00316 .35436 L
+s
+P
+p
+.001 w
+-0.00691 .37439 m
+-0.00316 .37439 L
+s
+P
+p
+.001 w
+-0.00691 .39441 m
+-0.00316 .39441 L
+s
+P
+p
+.001 w
+-0.00691 .43446 m
+-0.00316 .43446 L
+s
+P
+p
+.001 w
+-0.00691 .45449 m
+-0.00316 .45449 L
+s
+P
+p
+.001 w
+-0.00691 .47452 m
+-0.00316 .47452 L
+s
+P
+p
+.001 w
+-0.00691 .49454 m
+-0.00316 .49454 L
+s
+P
+p
+.001 w
+-0.00691 .5346 m
+-0.00316 .5346 L
+s
+P
+p
+.001 w
+-0.00691 .55462 m
+-0.00316 .55462 L
+s
+P
+p
+.001 w
+-0.00691 .57465 m
+-0.00316 .57465 L
+s
+P
+p
+.001 w
+-0.00691 .59467 m
+-0.00316 .59467 L
+s
+P
+[(Time)] -0.00691 .61803 0 -4 Mshowa
+p
+.002 w
+-0.00691 0 m
+-0.00691 .61803 L
+s
+P
+P
+p
+.004 w
+.02381 .01472 m
+.05453 .01662 L
+.11598 .02413 L
+.23886 .05263 L
+.48464 .16311 L
+.97619 .60332 L
+s
+.02381 .01472 m
+.05453 .01552 L
+.11598 .01732 L
+.23886 .02062 L
+.48464 .02847 L
+.97619 .04292 L
+s
+P
+[(n^2)] .76114 .51457 0 0 Mshowa
+[(kd-tree)] .91475 .07399 0 0 Mshowa
+0 0 m
+1 0 L
+1 .61803 L
+0 .61803 L
+closepath
+clip
+newpath
+% End of Graphics
+MathPictureEnd
+\
+\>"], "Graphics",
+  Evaluatable->False,
+  AspectRatioFixed->True,
+  ImageSize->{325, 200},
+  ImageMargins->{{34, Inherited}, {Inherited, Inherited}},
+  ImageCache->GraphicsData["Bitmap", "\<\
+CF5dJ6E]HGAYHf4PAg9QL6QYHg<PAVmbKF5d0`4000550000b0P10`4000010?ooo`3oooooZZ[oZSLg
+=gIfM[Fe]OCdm03oZS/k>gYjN[Vi^OShn03ooeGooj[oooclo5H/1EGooj[ooc/k>gYjN[Vi^OShn03o
+oclo?ginO[fm_Oclo5D00:X00?l00000EED0EJX00=d81Slo?ginO[fm_Oclo0<30d92@X61PL30`000
+EED0EJX0EOl0E@00ZUD0ZZX0E@<30d92@X61PL30`000E@L71dI6AXF5QLC4a000ZUD0ZZX0Z_l0ZP00
+e5D0ojX0ZPL71dI6AXF5QLC4a000ZP/;2dY:BXV9RLS8b000oeD0ojX0ool0o`1E05EE0:X0o`/;2dY:
+BXV9RLS8b000o`l?3di>CXf=SLc<c01E05EE0:YE0?mE001EEEEEEJYE00l?3di>CXf=SLc<c01E01<C
+4e9BDY6ATM3@d01EEEEEEJYEEOmEE@1EZUEEZZYEEA<C4e9BDY6ATM3@d01EEALG5eIFEYFEUMCDe01E
+ZUEEZZYEZ_mEZP1EoeEEojYEZQLG5eIFEYFEUMCDe01EZQ/K6eYJFYVIVMSHf01EoeEEojYEoomEo`2Z
+05FZ0:YEoa/K6eYJFYVIVMSHf01EoalO7eiNGYfMWMcLg02Z05FZ0:ZZ0?nZ002ZEEFZEJZZ01lO7eiN
+GYfMWMcLg02Z02<S8f9RHZ6QXN3Ph02ZEEFZEJZZEOnZE@2ZZUFZZZZZEB<S8f9RHZ6QXN3Ph02ZEBLW
+9fIVIZFUYNCTi02ZZUFZZZZZZ_nZZP2ZoeFZojZZZRLW9fIVIZFUYNCTi02ZZR/[:fYZJZVYZNSXj02Z
+oeFZojZZoonZo`3o05Go0:ZZob/[:fYZJZVYZNSXj02Zobl_;fi^KZf][Nc/k03o05Go0:[o0?oo003o
+EEGoEJ[o02l_;fi^KZf][Nc/k03o03<c<g9bL[6a/O3`l03oEEGoEJ[oEOooE@3oZUGoZZ[oEC<c<g9b
+L[6a/O3`l03oECLg=gIfM[Fe]OCdm03oZUGoZZ[oZP000?l0AP000?l0AP000?l0AP0003l00ol400;o
+1002oaH00ol400;o1002o`@00_lD00?o0`03o`@00_l400;o4`04o`<00_l400;o1002oa<01?l200?o
+1002o`@00_lD00?o1002o`@00_l400;o:P00048000Co003o0P001?l00?l20003o`0001@000?o0000
+0P001?l00?l20004o`00o`8000Co003o50000ol000050004o`00o`8000Co003o0P000ol0000A0003
+o`00008000Co003o0P001?l00?l20004o`00oa<000?o00001@001?l00?l20004o`00o`8000?o0000
+50001?l00?l20004o`00o`8000Co003o0P000ol0000W0000@P001?l00?l20004o`00o`8000?o0000
+50000ol000020004o`00o`8000Co003o0P001?l00?lD0003o`0000D000Co003o0P001?l00?l20003
+o`00018000Go0000o`020004o`00o`8000Co003o0P000ol0000B0003o`0000@000Co003o0P001?l0
+0?l20003o`0001@000Co003o0P001?l00?l20004o`00o`8000?o00009`0003l00ol30004o`00o`80
+00Co003o5P000ol000020004o`00o`8000Co003o0P001?l00?lD0003o`0000800ol30004o`00o`80
+00Co003o5@001?l00?l20004o`00o`8000Co003o0P000ol0000C0003o`0000?o0`001?l00?l20004
+o`00oa@00_l30004o`00o`8000Co003o0P001?l00?lY0000?`000ol000030004o`00o`8000Co003o
+5P000ol000020004o`00o`8000Co003o0P001?l00?lD0003o`00008000?o00000`001?l00?l20004
+o`00oa8000Co003o0P001?l00?l20004o`00o`8000Co003o4P001?l00?l20003o`0000<000Co003o
+0P001?l00?lF0004o`00o`8000Co003o0P001?l00?l20003o`0002L0000o00Co0`02o`@00_lF00;o
+1@02o`@00_l400;o5002o`@01?l300;o1002oa@00_l400;o1002o`@00_lD00;o0`04o`<00_l400;o
+5003o`@00_l400;o1002obX0003o04H0003o04H0003o038000?o000020000ol0000600007P000ol0
+003o010000?o00002P000ol0000500007P000ol0003o010000?o00000P02o`030?oo00<000?o0000
+1@0001h000?o0000o`0@0003o`00008000Co003o10000ol0000500007P000ol0o`3oo`So20000ol0
+00020004o`00o`@000?o00001@0001h000?o00001@0Zo`L000?o00001@000ol000050003o`0000D0
+00?o00001@000ol000050003o`0000D000?o00001P000ol000050003o`0000D000?o00001@000ol0
+00050003o`0000D000?o00001@000ol000050003o`0000D000?o00001@000ol000050003o`0000D0
+00?o00001P000ol000050003o`0000D000?o00001@000ol000050003o`0000D000?o00001@000ol0
+000<0003o`00008000Co003o10000ol0000500007P000ol0000C00So2`000ol00006023o:0000ol0
+000U0003o`0002D000?o00009P000ol0000L0004o`0000Go10000ol0000500007P000ol0000K00Ko
+;P0Qoj0000?o000020000ol0000600007P000ol0000Q00CoB`0Poi@0000N0003o`0002D01?mW023o
+M00001h00_lZ00CoP`0Qoe<0000N0003o`0002d01?nP023o<`0001h000?o0000<@04ok`04?lS0000
+7P000ol0000e00Coj`0001h000?o0000>@04onL0000N00;o?P03on@0000N0003o`0004000_oR0000
+7P000ol0001200?og`0001h000?o0000A@02oiD000Co0?oo0`05o`L00ol200Co0`04o`801?lO0000
+7P000ol0001700;oT`000ol0o`030005o`000?l020001?l00?l20003o`00008000?o00000`000ol0
+000Q00007P02odX00_nA00?o0`001_l0003o00Go0P000ol000030003o`0000801Ol00`3oo`03oal0
+000N0003o`0004/00on>0003o`3o00<000Go0000o`080003o`0000<00_l30007o`000?l0o`030003
+o`0001d0000N0003o`0004h00_n<0004o`3oo`<01?l700Co0P02o`030?oo00800ol300?o800001h0
+00?o0000D002ohX000?o00001`000ol000060003o`000380000N0003o`0005800_n700;o2002o`P0
+00?o0000<P0001h000?o0000E003old0000N00;oF002ol/0000N0003o`0005T00_o900007P000ol0
+001K00;oa`0000@00ol400;o1002o`@00_l50003o`0005d00oo400001@000ol000020004o`00o`80
+00Co003o0P001?l00?l40003o`0006000_o200001@000ol000020004o`00o`8000Co003o0P001?l0
+0?l400?oHP02ol0000050003o`00008000Co003o0P001?l00?l20004o`00o`@000?o0000I002okh0
+00050003o`00008000Co003o0P001?l00?l20004o`00o`@000?o0000IP02ok`0000400;o1@02o`@0
+0_l400;o1@000ol0001X00?o^@0001h000?o0000J`02okL0000N00;oKP02okD0000N0003o`0006l0
+0_nc00007P000ol0001a00?o/00001h000?o0000M002ojh0000N0003o`0007H00_n/00007P02ogT0
+0_nZ00007P000ol0001j00?oY`0001h000?o0000O@02ojD0000N0003o`0007l00_nS00007P000ol0
+00210003o`000:00000N0003o`00088000?o0000W`0001h00_n40003o`0009h0000N0003o`0008@0
+00?o0000W@0001h000?o0000Q@000ol0002L00007P000ol000260003o`0009/0000N0003o`0008L0
+00?o0000VP0001h00_n90003o`0009T0000N0003o`0008T00_nI00007P000ol0002;0003o`0009H0
+000400Co0`02o`@00_l400;o1@000ol0002<0003o`0009D000050003o`00008000Co003o0P001?l0
+0?l20004o`00o`@000?o0000S@000ol0002D00001P001Ol0003o008000Co003o0P001?l00?l20003
+o`0000800on>0003o`0009<000070004o`00o`8000Co003o0P001?l00?l20003o`00008000?o0000
+S`000ol0002B000010001?l00?l20004o`00o`8000Co003o0P001?l00?l40003o`00090000?o0000
+T@0000D00_l400;o1002o`@00_l50003o`00094000?o0000T00001h000?o0000TP000ol0002?0000
+7P02oi@00_n?00007P000ol0002E0003o`0008`0000N0003o`0009H000?o0000R`0001h000?o0000
+U`000ol0002:00007P000ol0002H0003o`0008T0000N0003o`0009T000?o0000R00001h00_nK0003
+o`0008L0000N0003o`0009/000?o0000QP0001h000?o0000W0000ol0002500007P000ol0002M00;o
+Q@0001h000?o0000W`000ol0002200007P02oj4000?o0000P@0001h000?o0000X@000ol000200000
+7P000ol0002R0003o`0007l0000N0003o`000:<000?o0000OP0001h000?o0000Y0000ol0001m0000
+7P02ojH000?o0000O00001h000?o0000YP000ol0001k00007P000ol0002W00;oN`0001h000?o0000
+Z@000ol0001h00001003o`@00_l400;o1002o`D000?o0000ZP000ol0001g00001`001?l00?l20004
+o`00o`8000Co003o0P000ol000020003o`000:/000?o0000MP0000L000Co003o0P001?l00?l20004
+o`00o`8000?o00000P03oj`000?o0000M@0000D00_l30004o`00o`8000Co003o0P001?l00?l40003
+o`000:d000?o0000M00000L000Co003o0P001?l00?l20004o`00o`8000?o00000P000ol0002^0003
+o`0007<0000400?o1002o`@00_l400;o1@000ol0002_0003o`000780000N0003o`000;0000?o0000
+L@0001h00_nb00;oL@0001h000?o0000/`000ol0001^00007P000ol0002d0003o`0006d0000N0003
+o`000;D000?o0000K00001h000?o0000]P000ol0001[00007P02okP000?o0000JP0001h000?o0000
+^0000ol0001Y00007P000ol0002i0003o`0006P0000N0003o`000;X000?o0000I`0001h000?o0000
+^`02ofL0000N00;o_P000ol0001T00007P000ol0002n0003o`0006<0000N0003o`000;l000?o0000
+HP0001h000?o0000`0000ol0001Q00007P000ol000310003o`000600000N0003o`000<8000?o0000
+G`0001h00_o40003o`0005h0000N0003o`000<@00_mN00007P000ol000360003o`0005/0000500?o
+0`02o`@00_l400;o1@000ol000370003o`0005X000060005o`000?l00P001?l00?l20004o`00o`80
+00?o00000P000ol000380003o`0005T0000400Co0P001?l00?l20004o`00o`8000Co003o1003olT0
+00?o0000F00000@000?o0?l00`001?l00?l20004o`00o`8000Co003o10000ol0003:0003o`0005L0
+00040003o`3o00<000Co003o0P001?l00?l20004o`00o`@000?o0000b`000ol0001F00001@02o`@0
+0_l400;o1002o`D000?o0000c0000ol0001E00007P000ol0003=0003o`0005@0000N00;oc`02oe@0
+000N0003o`000=0000?o0000D@0001h000?o0000d@000ol0001@00007P000ol0003B0003o`0004l0
+000N0003o`000=<000?o0000CP0001h00_oE0003o`0004d0000N0003o`000=D000?o0000C00001h0
+00?o0000eP000ol0001;00007P000ol0003G0003o`0004X0000N0003o`000=P00_m:00007P000ol0
+003J0003o`0004L0000N00;og0000ol0001600007P000ol0003L0003o`0004D0000N0003o`000=d0
+00?o0000A00001h000?o0000gP000ol0001300007P000ol0003O0003o`000480000N00;oh@000ol0
+001100007P000ol0003Q0003o`000400000N0003o`000>800_m000001003o`@00_l400;o1002o`D0
+00?o0000_`02o`030?oo00L01?lE0003o`0003d000070004o`00o`8000Co003o0P001?l00?l20003
+o`00008000?o0000_`001?l00?l90003o`0001H000?o0000?00000L000Co003o0P001?l00?l20004
+o`00o`8000?o00000P03okl000Co003o2P000ol0000F0003o`0003/0000400?o0`001?l00?l20004
+o`00o`8000Co003o10000ol0002o0004o`00o`/000?o00005P000ol0000j000010000ol000030004
+o`00o`8000Co003o0P001?l00?l40003o`000;h01Ol80004o`00oaT000?o0000>@0000@01?l300;o
+1002o`@00_l50003o`000<D000?o0?l01002oa/000?o0000>00001h000?o0000aP000ol0000Q0003
+o`0003L0000N0003o`000>/000?o0000=P0001h00_o]00;o=P0001h000?o0000kP000ol0000c0000
+7P000ol0003_0003o`000380000N0003o`000?0000?o0000<@0001h000?o0000l@000ol0000`0000
+7P02oo<000?o0000;`0001h000?o0000l`000ol0000^00007P000ol0003d0003o`0002d0000N0003
+o`000?D000?o0000;00001h000?o0000mP02ob`0000N00;on@000ol0000Y00007P000ol0003i0003
+o`0002P0000N0003o`000?X000?o00009`0001h000?o0000n`000ol0000V00007P000ol0003l0003
+o`0002D0000N00;ooP000ol0000T00007P000ol0003n0003o`0002<0000N0003o`000?l000?o0000
+8P0001h000?o0000o`010003o`000240000500;o1002o`@00_l400;o1@000ol0003o02D000040004
+o`00o`8000Co003o0P001?l00?l20004o`00o`@000?o0000o`0U000010001?l00?l20004o`00o`80
+00Co003o0P001?l00?l400?oo`0U00001003o`<000Co003o0P001?l00?l20004o`00ool0;00000@0
+00?o00000`001?l00?l20004o`00o`8000Co003oo`0/00001@03o`<00_l400;o1002ool0;@000?l0
+AP000?l0AP000:401?nP0000XP000ol0002P0000H0001?l0ool300Go1`03o`801?l300Co0P04o`P0
+0ol300?o0P001_l0o`3o00Co0P05o`030?oo00;o0`04o`801Ol700?o0`03o`P00_l00`3oo`0700Co
+G@00060000?o0?l00`001Ol0003o00T000?o00000P000ol000020003o`0000<000?o00002@001ol0
+003o0?l00`002Ol0o`3o0?l0o`030003o`3o008000Go0000o`040003o`0000<000Go0000o`080006
+o`00o`3o0`000ol000050004o`00o`T000?o0000G@0006000ol30006o`000?l01Ol30003o`000080
+00?o00000P05o`030?oo00?o1`000ol00003000=o`000?l0o`3o0?l0o`030003o`3o00?o0`000ol0
+000200Go00<0o`000P000ol000060003o`00008000Go0000o`070004o`00o`X000?o0000G0000600
+00?o0?l00`001Ol0003o00L000Go0?l0o`0200;o0`001ol0003o0?l00`000ol000050007o`000?l0
+o`030009o`3o0?l0o`3o00<000?o00000P001?l00002o`<000Oo0000o`3o00<000?o00001P000ol0
+00020005o`000?l01`001?l00?l;0003o`0005/0001P0004o`3oo`<01?l70006o`3o0?l00_l00`3o
+o`0200?o0`03o`T01?l200?o00<0ool02Ol300?o0P02o`030?oo00800ol300Co1`04o`<00ol700Go
+20001?l00?mM0000H0000ol000070003o`0000D01Om70003o`0000H000?o000050000ol0o`0400;o
+GP0005l00_l800;oDP02o`P000?o00005@000ol0001S0000o`160000o`160000o`1600005003o`80
+1Ol01P3o0?l0o`801?oo01`0000E0003o`0000<000_o0000o`3o0?l0o`3o0200000E0003o`0000<0
+00[o0000o`3o0?l01Ooo01`0000C0005o`3o0?l00`002ol0003o0?l0o`3o00<000?o0000o`0J0000
+4`001Ol0o`3o00800_l200Ko0P03ool07@0001<01Ooo02h0000K0003o`000?l0:0000?l0AP000001
+\
+\>"],
+  ImageRangeCache->{{{0, 324}, {199, 0}} -> {-381.537, -569.255, 12.3675, 
+  37.9456}}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[TextData[
+"a2 = Show[{p2, p3, p4},\n        PlotLabel->\"kd-tree bucket size comparison\
+\",\n        DisplayFunction->$DisplayFunction,\n        PlotRange->All,\n    \
+    Epilog->{Text[\"1\", {3300, 280}],\n                        Text[\"4\", \
+{3300, 250}],\n                        Text[\"8\", {3300, 230}]}];"], "Input",\
+
+  AspectRatioFixed->True],
+
+Cell[GraphicsData["PostScript", "\<\
+%!
+%%Creator: Mathematica
+%%AspectRatio: .61803 
+MathPictureStart
+%% Graphics
+/Courier findfont 10  scalefont  setfont
+% Scaling calculations
+-0.00691244 0.00030722 0.00226519 0.00207498 [
+[(500)] .1467 .00227 0 2 Msboxa
+[(1000)] .30031 .00227 0 2 Msboxa
+[(1500)] .45392 .00227 0 2 Msboxa
+[(2000)] .60753 .00227 0 2 Msboxa
+[(2500)] .76114 .00227 0 2 Msboxa
+[(3000)] .91475 .00227 0 2 Msboxa
+[(\\(n\\))] 1.025 .00227 -1 0 Msboxa
+[(kd-tree bucket size comparison)] .5 .61803 0 -2 0 0 1 Mouter Mrotsboxa
+[(50)] -0.01941 .10601 1 0 Msboxa
+[(100)] -0.01941 .20976 1 0 Msboxa
+[(150)] -0.01941 .31351 1 0 Msboxa
+[(200)] -0.01941 .41726 1 0 Msboxa
+[(250)] -0.01941 .52101 1 0 Msboxa
+[(Time)] -0.00691 .61803 0 -4 Msboxa
+[(1)] 1.00691 .58326 0 0 Msboxa
+[(4)] 1.00691 .52101 0 0 Msboxa
+[(8)] 1.00691 .47951 0 0 Msboxa
+[ -0.00791 -0.001 0 0 ]
+[ 1.001 .61903 0 0 ]
+] MathScale
+% Start of Graphics
+1 setlinecap
+1 setlinejoin
+newpath
+[ ] 0 setdash
+0 g
+p
+p
+.002 w
+.1467 .00227 m
+.1467 .00852 L
+s
+P
+[(500)] .1467 .00227 0 2 Mshowa
+p
+.002 w
+.30031 .00227 m
+.30031 .00852 L
+s
+P
+[(1000)] .30031 .00227 0 2 Mshowa
+p
+.002 w
+.45392 .00227 m
+.45392 .00852 L
+s
+P
+[(1500)] .45392 .00227 0 2 Mshowa
+p
+.002 w
+.60753 .00227 m
+.60753 .00852 L
+s
+P
+[(2000)] .60753 .00227 0 2 Mshowa
+p
+.002 w
+.76114 .00227 m
+.76114 .00852 L
+s
+P
+[(2500)] .76114 .00227 0 2 Mshowa
+p
+.002 w
+.91475 .00227 m
+.91475 .00852 L
+s
+P
+[(3000)] .91475 .00227 0 2 Mshowa
+p
+.001 w
+.02381 .00227 m
+.02381 .00602 L
+s
+P
+p
+.001 w
+.05453 .00227 m
+.05453 .00602 L
+s
+P
+p
+.001 w
+.08525 .00227 m
+.08525 .00602 L
+s
+P
+p
+.001 w
+.11598 .00227 m
+.11598 .00602 L
+s
+P
+p
+.001 w
+.17742 .00227 m
+.17742 .00602 L
+s
+P
+p
+.001 w
+.20814 .00227 m
+.20814 .00602 L
+s
+P
+p
+.001 w
+.23886 .00227 m
+.23886 .00602 L
+s
+P
+p
+.001 w
+.26959 .00227 m
+.26959 .00602 L
+s
+P
+p
+.001 w
+.33103 .00227 m
+.33103 .00602 L
+s
+P
+p
+.001 w
+.36175 .00227 m
+.36175 .00602 L
+s
+P
+p
+.001 w
+.39247 .00227 m
+.39247 .00602 L
+s
+P
+p
+.001 w
+.4232 .00227 m
+.4232 .00602 L
+s
+P
+p
+.001 w
+.48464 .00227 m
+.48464 .00602 L
+s
+P
+p
+.001 w
+.51536 .00227 m
+.51536 .00602 L
+s
+P
+p
+.001 w
+.54608 .00227 m
+.54608 .00602 L
+s
+P
+p
+.001 w
+.5768 .00227 m
+.5768 .00602 L
+s
+P
+p
+.001 w
+.63825 .00227 m
+.63825 .00602 L
+s
+P
+p
+.001 w
+.66897 .00227 m
+.66897 .00602 L
+s
+P
+p
+.001 w
+.69969 .00227 m
+.69969 .00602 L
+s
+P
+p
+.001 w
+.73041 .00227 m
+.73041 .00602 L
+s
+P
+p
+.001 w
+.79186 .00227 m
+.79186 .00602 L
+s
+P
+p
+.001 w
+.82258 .00227 m
+.82258 .00602 L
+s
+P
+p
+.001 w
+.8533 .00227 m
+.8533 .00602 L
+s
+P
+p
+.001 w
+.88402 .00227 m
+.88402 .00602 L
+s
+P
+p
+.001 w
+.94547 .00227 m
+.94547 .00602 L
+s
+P
+p
+.001 w
+.97619 .00227 m
+.97619 .00602 L
+s
+P
+[(\\(n\\))] 1.025 .00227 -1 0 Mshowa
+p
+.002 w
+0 .00227 m
+1 .00227 L
+s
+P
+[(kd-tree bucket size comparison)] .5 .61803 0 -2 0 0 1 Mouter Mrotshowa
+p
+.002 w
+-0.00691 .10601 m
+-0.00066 .10601 L
+s
+P
+[(50)] -0.01941 .10601 1 0 Mshowa
+p
+.002 w
+-0.00691 .20976 m
+-0.00066 .20976 L
+s
+P
+[(100)] -0.01941 .20976 1 0 Mshowa
+p
+.002 w
+-0.00691 .31351 m
+-0.00066 .31351 L
+s
+P
+[(150)] -0.01941 .31351 1 0 Mshowa
+p
+.002 w
+-0.00691 .41726 m
+-0.00066 .41726 L
+s
+P
+[(200)] -0.01941 .41726 1 0 Mshowa
+p
+.002 w
+-0.00691 .52101 m
+-0.00066 .52101 L
+s
+P
+[(250)] -0.01941 .52101 1 0 Mshowa
+p
+.001 w
+-0.00691 .02302 m
+-0.00316 .02302 L
+s
+P
+p
+.001 w
+-0.00691 .04376 m
+-0.00316 .04376 L
+s
+P
+p
+.001 w
+-0.00691 .06451 m
+-0.00316 .06451 L
+s
+P
+p
+.001 w
+-0.00691 .08526 m
+-0.00316 .08526 L
+s
+P
+p
+.001 w
+-0.00691 .12676 m
+-0.00316 .12676 L
+s
+P
+p
+.001 w
+-0.00691 .14751 m
+-0.00316 .14751 L
+s
+P
+p
+.001 w
+-0.00691 .16826 m
+-0.00316 .16826 L
+s
+P
+p
+.001 w
+-0.00691 .18901 m
+-0.00316 .18901 L
+s
+P
+p
+.001 w
+-0.00691 .23051 m
+-0.00316 .23051 L
+s
+P
+p
+.001 w
+-0.00691 .25126 m
+-0.00316 .25126 L
+s
+P
+p
+.001 w
+-0.00691 .27201 m
+-0.00316 .27201 L
+s
+P
+p
+.001 w
+-0.00691 .29276 m
+-0.00316 .29276 L
+s
+P
+p
+.001 w
+-0.00691 .33426 m
+-0.00316 .33426 L
+s
+P
+p
+.001 w
+-0.00691 .35501 m
+-0.00316 .35501 L
+s
+P
+p
+.001 w
+-0.00691 .37576 m
+-0.00316 .37576 L
+s
+P
+p
+.001 w
+-0.00691 .39651 m
+-0.00316 .39651 L
+s
+P
+p
+.001 w
+-0.00691 .43801 m
+-0.00316 .43801 L
+s
+P
+p
+.001 w
+-0.00691 .45876 m
+-0.00316 .45876 L
+s
+P
+p
+.001 w
+-0.00691 .47951 m
+-0.00316 .47951 L
+s
+P
+p
+.001 w
+-0.00691 .50026 m
+-0.00316 .50026 L
+s
+P
+p
+.001 w
+-0.00691 .54176 m
+-0.00316 .54176 L
+s
+P
+p
+.001 w
+-0.00691 .56251 m
+-0.00316 .56251 L
+s
+P
+p
+.001 w
+-0.00691 .58326 m
+-0.00316 .58326 L
+s
+P
+p
+.001 w
+-0.00691 .60401 m
+-0.00316 .60401 L
+s
+P
+[(Time)] -0.00691 .61803 0 -4 Mshowa
+p
+.002 w
+-0.00691 0 m
+-0.00691 .61803 L
+s
+P
+P
+p
+.004 w
+.02381 .01887 m
+.05453 .03546 L
+.11598 .07281 L
+.23886 .14129 L
+.48464 .30383 L
+.97619 .60332 L
+s
+.02381 .01472 m
+.05453 .02716 L
+.11598 .05829 L
+.23886 .11639 L
+.48464 .25195 L
+.97619 .50234 L
+s
+.02381 .01472 m
+.05453 .02716 L
+.11598 .05621 L
+.23886 .11224 L
+.48464 .24365 L
+.97619 .48643 L
+s
+P
+[(1)] 1.00691 .58326 0 0 Mshowa
+[(4)] 1.00691 .52101 0 0 Mshowa
+[(8)] 1.00691 .47951 0 0 Mshowa
+0 0 m
+1 0 L
+1 .61803 L
+0 .61803 L
+closepath
+clip
+newpath
+% End of Graphics
+MathPictureEnd
+\
+\>"], "Graphics",
+  Evaluatable->False,
+  AspectRatioFixed->True,
+  ImageSize->{335, 206},
+  ImageMargins->{{34, Inherited}, {Inherited, Inherited}},
+  ImageCache->GraphicsData["Bitmap", "\<\
+CF5dJ6E]HGAYHf4PAg9QL6QYHg<PAVmbKF5d0`40005?0000cPP10`4000010?ooo`3oooooZZ[oZSLg
+=gIfM[Fe]OCdm03oZS/k>gYjN[Vi^OShn03ooeGooj[oooclo5H/1EGooj[ooc/k>gYjN[Vi^OShn03o
+oclo?ginO[fm_Oclo5D00:X00?l00000EED0EJX00=d81Slo?ginO[fm_Oclo0<30d92@X61PL30`000
+EED0EJX0EOl0E@00ZUD0ZZX0E@<30d92@X61PL30`000E@L71dI6AXF5QLC4a000ZUD0ZZX0Z_l0ZP00
+e5D0ojX0ZPL71dI6AXF5QLC4a000ZP/;2dY:BXV9RLS8b000oeD0ojX0ool0o`1E05EE0:X0o`/;2dY:
+BXV9RLS8b000o`l?3di>CXf=SLc<c01E05EE0:YE0?mE001EEEEEEJYE00l?3di>CXf=SLc<c01E01<C
+4e9BDY6ATM3@d01EEEEEEJYEEOmEE@1EZUEEZZYEEA<C4e9BDY6ATM3@d01EEALG5eIFEYFEUMCDe01E
+ZUEEZZYEZ_mEZP1EoeEEojYEZQLG5eIFEYFEUMCDe01EZQ/K6eYJFYVIVMSHf01EoeEEojYEoomEo`2Z
+05FZ0:YEoa/K6eYJFYVIVMSHf01EoalO7eiNGYfMWMcLg02Z05FZ0:ZZ0?nZ002ZEEFZEJZZ01lO7eiN
+GYfMWMcLg02Z02<S8f9RHZ6QXN3Ph02ZEEFZEJZZEOnZE@2ZZUFZZZZZEB<S8f9RHZ6QXN3Ph02ZEBLW
+9fIVIZFUYNCTi02ZZUFZZZZZZ_nZZP2ZoeFZojZZZRLW9fIVIZFUYNCTi02ZZR/[:fYZJZVYZNSXj02Z
+oeFZojZZoonZo`3o05Go0:ZZob/[:fYZJZVYZNSXj02Zobl_;fi^KZf][Nc/k03o05Go0:[o0?oo003o
+EEGoEJ[o02l_;fi^KZf][Nc/k03o03<c<g9bL[6a/O3`l03oEEGoEJ[oEOooE@3oZUGoZZ[oEC<c<g9b
+L[6a/O3`l03oECLg=gIfM[Fe]OCdm03oZUGoZZ[oZP000?l0D0000?l0D0000?l0D00003l00ol400;o
+1002oaL00ol400;o1002o`@00_lD00?o0`03o`@00_l400;o5@04o`<00_l400;o1002oa@01?l200?o
+1002o`@00_lD00?o1002o`@00_l400;o<000048000Co003o0P001?l00?l20003o`0001D000?o0000
+0P001?l00?l20004o`00o`8000Co003o50000ol000050004o`00o`8000Co003o0P000ol0000C0003
+o`00008000Co003o0P001?l00?l20004o`00oa@000?o00001@001?l00?l20004o`00o`8000?o0000
+50001?l00?l20004o`00o`8000Co003o0P000ol0000]0000@P001?l00?l20004o`00o`8000?o0000
+5@000ol000020004o`00o`8000Co003o0P001?l00?lD0003o`0000D000Co003o0P001?l00?l20003
+o`0001@000Go0000o`020004o`00o`8000Co003o0P000ol0000C0003o`0000@000Co003o0P001?l0
+0?l20003o`0001@000Co003o0P001?l00?l20004o`00o`8000?o0000;@0003l00ol30004o`00o`80
+00Co003o5`000ol000020004o`00o`8000Co003o0P001?l00?lD0003o`0000800ol30004o`00o`80
+00Co003o5`001?l00?l20004o`00o`8000Co003o0P000ol0000D0003o`0000?o0`001?l00?l20004
+o`00oa@00_l30004o`00o`8000Co003o0P001?l00?l_0000?`000ol000030004o`00o`8000Co003o
+5`000ol000020004o`00o`8000Co003o0P001?l00?lD0003o`00008000?o00000`001?l00?l20004
+o`00oa@000Co003o0P001?l00?l20004o`00o`8000Co003o4`001?l00?l20003o`0000<000Co003o
+0P001?l00?lF0004o`00o`8000Co003o0P001?l00?l20003o`0002d0000o00Co0`02o`@00_lG00;o
+1@02o`@00_l400;o5002o`@01?l300;o1002oaH00_l400;o1002o`@00_lE00;o0`04o`<00_l400;o
+5003o`@00_l400;o1002oc00003o0500003o0500003o03H000?o000020000ol0000<0000o`0e0003
+o`0000X000?o00002`000?l0=@000ol0000200;o00<0ool00`000ol0000;0000o`0e0003o`000080
+00Co003o10000ol0000;00007P000ol0o`3oo`go1`000ol000020004o`00o`@000?o00002`0001h0
+00?o00001@000ol000050003o`0000H000?o00001@000ol000050003o`0000D000?o00001P000ol0
+00050003o`0000D000?o00001@000ol000050003o`0000H000?o00001@000ol000050003o`0000D0
+00?o00001P000ol000050003o`0000D000?o00001@000ol000060003o`0000D000?o00001@000ol0
+00050003o`0000D000?o00001P000ol000050003o`0000D000?o00001@000ol000060003o`0000D0
+00?o00001@000ol000050003o`0000`000?o00000P001?l00?l40003o`0000/0000N0003o`0000D0
+00?o00001@000ol000060003o`0000D000?o00001@000ol000050003o`0000H000?o00001@000ol0
+00050003o`0000D000?o00001@000ol000060003o`0000D000?o00001@000ol000050003o`0000H0
+00?o00001@000ol000050003o`0000D000?o00001P000ol000050003o`0000D000?o00001@000ol0
+00050003o`0000H000?o00001@000ol000050003o`0000D000?o00001P000ol000050003o`0000D0
+00?o00001@000ol0000<0004o`0000Go10000ol0000;00007P000ol0003o01D000?o000020000ol0
+000<00007P000ol0000500;oo`0X00007P000ol0000500Goo`0U00007P02o`P00_l0103ooooo0280
+000N0003o`0000T00_l200;oo`0P00007P000ol0000;00;o0P02ool07P0001h000?o00003@02o`80
+0_oo01`0000N0003o`0000l00_l200;oo`0J00007P000ol0000A0004o`0000?oo`0G00007P02oa<0
+0_l300?oo`0E00007P000ol0000D00;o0P04ool04`0001h000?o00005P001?l00004ool04@0001h0
+00?o00005`02o`<01?oo00l0000N0003o`0001T00_l300Coo`0=00007P02oa`000?o00000P05ool0
+2P0001h000?o00007002o`@01Ooo00P0000N0003o`0001h00_l500Coo`0600007P000ol0000P00;o
+1@04ool0100001h000?o00008P000ol0000400Coo`0200007P000ol0000S00;o1P05ooh0000N00;o
+9P02o`H01Ool00007P000ol0000W00;o1`04ooX0000N0003o`0002T000?o00001P04ooP0000@00?o
+1002o`D000?o0000:P02o`P01?of00004`001?l00?l20003o`00008000?o0000;002o`P01Ooc0000
+4`001?l00?l20003o`0000800ol^00;o2005oo40000@00?o0`001?l00?l40003o`00030000?o0000
+2004onl0000@0003o`0000<000Co003o10000ol0000a00;o2P04ond0000@00Co0`02o`D000?o0000
+<`02o`X01?o[00007P000ol0000e0003o`0000T01?oY00007P000ol0000f00;o2`04onL0000N00;o
+>@02o`/000?o0?l0iP0001h000?o0000>P02o`X01?oT00007P000ol0000l0003o`0000T01?oR0000
+7P000ol0000m00;o2`04on00000N0003o`0003l00_l;00CogP0001h00_m20003o`0000X01?oL0000
+7P000ol0001200;o30001?l0oooJ00007P000ol000140003o`0000X00_l00`3oo`3H00007P000ol0
+001500;o3002o`030?oo0=H0000N0003o`0004L000?o00002`02o`030?l00=@0000N0003o`0004P0
+0_l=00Cod`0001h00_m;00;o3@04om40000N0003o`0004`000?o000030001?l0ooo?00007P000ol0
+001=00;o3@02o`030?oo0<d0000N0003o`0004l000?o00003002o`030?oo0</0000N0003o`000500
+0_l>00;o00<0ool0b@0001h000?o0000DP000ol0000=00;o00<0ool0a`0001h00_mD00;o3`02o`03
+0?oo0<D0000N0003o`0005D000?o00003P001?l00?o400007P000ol0001F00;o3`02o`030?oo0<80
+000:00?o1002o`@00_l50003o`0005P000?o00003P02o`030?oo0<00000;0003o`00008000Co003o
+0P001?l00?l40003o`0005T00_l@00;o00<0ool0_P0000/000?o00000P001?l00?l20004o`00o`@0
+0omK0003o`0000l00_l00`3oo`2l00002`000ol000020004o`00o`8000Co003o10000ol0001L00;o
+4@02o`030?oo0;X0000;0003o`00008000Co003o0P001?l00?l40003o`0005h000?o000040000ol0
+0002okP0000:00;o1@02o`@00_l50003o`0005l00_lA00;o0P02okH0000N0003o`0006400_lA00;o
+0P02ok@0000N0003o`0006<000?o00004002o`8000?o0000/@0001h00_mU00;o4P02o`030?oo0;40
+000N0003o`0006H000?o00004@02o`030?oo0:l0000N0003o`0006L00_lC0003o`0000;o[@0001h0
+00?o0000J@000ol0000A00;o0P02oj/0000N0003o`0006X00_lC00;o0P02ojT0000N00;oK@000ol0
+000B00;o0P02ojL0000N0003o`0006d00_lD00;o0P02ojD0000N0003o`0006l000?o00004`02o`80
+0_nS00007P000ol0001`00;o5@02o`800_nQ00007P000ol0001b0003o`0001@00_l200;oW`0001h0
+00?o0000L`02oaH00_l200;oW@0001h00_mf0003o`0001D00_l200;oV`0001h000?o0000MP02oaL0
+0_l200;oV@0001h000?o0000N002oaL00_l200;oU`0001h000?o0000NP000ol0000F00;o0P02oiD0
+000N0003o`0007/00_lH00;o0P02oi<0000N00;oOP000ol0000G0004o`0000;oT@0001h000?o0000
+OP02oaP00_l300;oS`0001h000?o0000P0000ol0000G00;o0`02ohd0000N0003o`0008400_lI00;o
+0`02oh/0000:00?o0`03o`@00_l50003o`0008<000?o00006002o`<00_n900002`000ol000050004
+o`00o`8000?o00000P000ol0002400;o6P02o`<00_n700002`000ol000050004o`00o`8000?o0000
+0P03ohH00_lJ00;o0`02ohD0000;0003o`0000800ol30004o`00o`@000?o0000R0000ol0000I00;o
+0`02oh<0000;0003o`00008000?o00000`001?l00?l40003o`0008T00_lK00;o0`02oh40000:00;o
+1004o`<00_l50003o`0008/00_lK00;o0`02ogl0000N0003o`0008d000?o00006P02o`<00_mm0000
+7P02ohl00_lL00;o0`02og/0000N0003o`00090000?o00006`02o`<00_mi00007P000ol0002A00;o
+7@02o`<00_mg00007P000ol0002C00;o7@02o`<00_me00007P000ol0002E0003o`0001`00_l300;o
+L`0001h000?o0000UP02oah00_l300;oL@0001h00_nI0003o`0001d00_l300;oK`0001h000?o0000
+V@02oal00_l300;oK@0001h000?o0000V`02oal00_l300?oJP0001h000?o0000W@000ol0000N00;o
+1002ofP0000N0003o`0009h00_lP00;o1002ofH0000N0003o`000:000_lP00;o1002of@0000N00;o
+X`000ol0000O0003o`0000<00_mR00007P000ol0002S00;o8002o`D00_mP00007P000ol0002U0003
+o`0001l00_l500;oGP0001h000?o0000YP02ob400_l500;oG00001h000?o0000Z002ob400_l500;o
+FP0001h00_n[0003o`0002000_l500;oF00001h000?o0000Z`02ob800_l500;oEP0001h000?o0000
+[@000ol0000Q00;o1@02oe@0000N0003o`000:h00_lS00;o1@02oe80000:00Co0`02o`@00_l50003
+o`000;000_lS00;o1@02oe00000;0003o`00008000Co003o0P001?l00?l40003o`000;8000?o0000
+8P02o`D00_m>000030001Ol0003o008000Co003o0P000ol0000200?o/`02ob@00_l500;oC00000d0
+00Co003o0P001?l00?l20003o`00008000?o0000]@02ob@00_l500;oBP0000X000Co003o0P001?l0
+0?l20004o`00o`@000?o0000]`000ol0000S00;o1@02odP0000;00;o1002o`@00_l50003o`000;P0
+0_lU00;o1@02odH0000N0003o`000;X000?o00009002o`D00_m400007P02ok`00_lV00;o1@02od80
+000N0003o`000;d00_lV00;o1@02od00000N0003o`000;l000?o00009@02o`D00_ln00007P000ol0
+003000;o9`02o`D00_ll00007P000ol0003200;o9`02o`D00_lj00007P000ol000340003o`0002H0
+0_l500;o>00001h00_o600;o:0000ol0000400;o=P0001h000?o0000a`000ol0000V00;o1P02oc@0
+000N0003o`000<P00_lX00;o1P02oc80000N0003o`000<X00_lX00;o1P02o`h00_lP00007P000ol0
+003<0003o`0002L00_l600;o2`001?l00?lO00007P02olh00_lY00;o1P02o`T000Co003o7`0001h0
+00?o0000c`000ol0000X00;o1P02o`P00_lP00007P000ol0003@00;o:P02o`H000?o000010001?l0
+0?lO00007P000ol0003B00;o:P02o``00_lP00007P000ol0003D0003o`0002T00_l/00007P000ol0
+003E00;o:`02obX0000N00;of002ob/000?o00009`0001h000?o0000f@000ol0001B00007P000ol0
+003J00;oDP0000X01?l200?o1002o`D000?o0000g0000ol0000]00?o7`0000/000?o00001@001?l0
+0?l20003o`00008000?o0000g@02obh000?o00007P0000`000?o000010001?l00?l20003o`000080
+0ooO00;o:P04oal0000=0003o`0000?o0`001?l00?l40003o`000>4000?o00009`000ol0o`0P0000
+2P001?l00?l20003o`0000<000Co003o10000ol0003R00;o9`000ol0o`0P00002`02o`<01?l300;o
+1@000ol0003T0003o`0002D00_lP00007P000ol0003U00;oA`0001h000?o0000i`02odD0000N00;o
+jP000ol0001200007P000ol0003Z00;o@P0001h000?o0000k002od00000N0003o`000>h000?o0000
+?@0001h000?o0000k`02ocd0000N0003o`000?4000?o0000>P0001h00_oc00;o>P0001h000?o0000
+m002ocP0000N0003o`000?H000?o0000=@0001h000?o0000m`02oa800olP00007P000ol0003i0003
+o`00010000?o00007`0001h00_ok00;o40000ol0000O00007P000ol0003l00;o3P000ol0000O0000
+7P000ol0003n0003o`0000/000?o00007`0001h000?o0000o`02o`X00_lQ00007P000ol0003o0080
+0_l[00007P000ol0003o00@000?o0000:00001h00_oo00H000?o00009`0001h000?o0000o`0_0000
+7P000ol0003o02l0000N0003o`000?l0;`000?l0D0000?l0D0000?l0D0000?l0D0000?l0D0000=H0
+1?me0000e`000ol0001e0000C@001?l0ool300Go1`03o`801?l300Co0P04o`L01?l200Go0P03o`80
+00Co0?oo0`04o`800ol800Co0P05o`030?oo00;o0`04o`P00ol300?o0P001_l0o`3o00Co0P05o`03
+0?oo00;o0P05o`030?oo00;o0`03o`800_l00`3oo`1?0000C@000ol0o`030005o`000?l020001?l0
+0?l20003o`00008000?o00000`000ol000090007o`000?l0o`020004o`00o`<000Go0?l0o`030003
+o`0000@000Co003o2P000ol000020003o`00008000?o00000P000ol000090007o`000?l0o`030009
+o`3o0?l0o`3o00<000?o0?l00P001Ol0003o00H000?o000010001?l00?l30003o`3o008000?o0000
+CP0004d00ol30006o`000?l01Ol20003o`0000<000?o00000P05o`030?oo00?o1`001ol0003o0?l0
+0P001?l00?l500?o0`05o`8000?o00002004o`@000?o00000P02o`<01Ol70003o`0000<000go0000
+o`3o0?l0o`3o00<000?o0?l00ol30003o`0000@000Co00001?l20007o`000?l0o`020003o`0004h0
+001=0003o`3o00<000Go0000o`080003o`0000<00_l30007o`000?l0o`030003o`0000D000Oo0000
+o`3o008000Co003o0`001Ol0o`3o00<000Go0000o`020003o`0000P000?o00001@000ol000030005
+o`000?l00`000ol000050007o`000?l0o`030009o`3o0?l0o`3o00<000?o00000P001?l00002o`D0
+00Go0000o`050007o`000?l0o`020003o`0004h0001=0004o`3oo`<01?l700Co0P02o`030?oo0080
+0ol300?o2004o`040?oo00;o0`04o`030?l000;o0`03o`801?l800Co0`02o`<01?l300?o2@04o`80
+0ol00`3oo`09o`<00ol200;o00<0ool00P02o`<01?l300?o00<0ool00om@0000C@000ol000070003
+o`0000H000?o00006P000ol0000?0003o`0000X000?o0000/00004`00_l800;o20000ol0000I00;o
+4002o``000?o000040000ol0000i0003o`000640003o0500003o0500003o0500000D00?o0P05o`06
+0?l0o`3o0P04ool09P0001D000?o00000`002ol0003o0?l0o`3o0?l0:P0001D000?o00000`002_l0
+003o0?l0o`05ool09P0001<000Go0?l0o`03000;o`000?l0o`3o0?l00`000ol0003o02@0000C0005
+o`3o0?l00P02o`801_l200?oo`0W00004`05ool0>00001/000?o0000o`0b0000o`1@0000\
+\>"],
+  ImageRangeCache->{{{0, 334}, {205, 0}} -> {-369.515, -26.9771, 12.1474, 
+  1.79853}}]
+}, Open  ]],
+
+Cell[TextData[
+"The first graph compares the performance of the O(n^2) algorithm and the \
+kd-tree method. It can be seen that the kd-tree algorithm does indeed have \
+O(n log n) performance. At 3200 points, the O(n^2) algorithm took on average \
+1 hour 38 minutes to complete, whereas the kd-tree took just under 5 \
+minutes."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"The second graph compares different setting for the bucket size on the same \
+set of points. The top line is bucket size = 1, the middle is bucket size = \
+4, the lowest line if bucket size  = 8. It can be seen that increasing the \
+size does give a performance increase, particularly noticable in the jump \
+from 1 to 4. The increase from 4 to 8 is less marked."], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"In order to determine how the algorithm scales  with increasing dimension, a \
+series of tests were performed where the dimension ranged from 2 to 40 and \
+the number of points ranged from 100 to 2000 (ie. 100 tests in all). All \
+tests were perfomed on an\nAlpha workstation. The raw results are in the \
+following fixed height cell:"], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell["\<\
+rawdata = {{2, 200, 0}, {2, 400, 0}, {2, 600, 0}, {2, 800, 0}, {2, \
+1000, 0}, {2, 1200, 0},
+ {2, 1400, 0}, {2, 1600, 0}, {2, 1800,  1}, {2, 2000, 1}, {4, 200,  0},{4,  \
+400,
+ 0}, {4, 600, 0}, {4, 800, 0}, {4,  1000,  1}, {4, 1200, 1}, {4,  1400,  2}, \
+{4,
+ 1600,  2}, {4,  1800,  3}, {4, 2000, 3}, {6, 200, 0}, {6, 400, 0}, {6, 600, \
+1},
+ {6, 800, 2}, {6, 1000, 3}, {6, 1200, 5}, {6, 1400, 6}, {6, 1600, 7}, {6,  \
+1800,
+ 9}, {6,  2000,  10}, {8, 200, 0}, {8, 400, 0}, {8, 600,  2}, {8,  800,  5}, \
+{8,
+ 1000, 7}, {8, 1200, 11}, {8, 1400, 14}, {8, 1600, 18}, {8, 1800, 21}, {8, \
+2000,
+ 25}, {10, 200, 0}, {10, 400, 1}, {10,  600, 4}, {10, 800, 7}, {10,  1000,  \
+11},
+ {10, 1200, 18}, {10, 1400, 23}, {10, 1600, 29}, {10, 1800, 36}, {10, 2000, \
+43},
+ {12, 200, 0}, {12, 400, 1}, {12, 600, 4}, {12, 800, 9}, {12,  1000,  13},  \
+{12,
+ 1200, 22}, {12, 1400, 29}, {12, 1600, 39}, {12, 1800, 44}, {12, 2000, 56}, \
+{14,
+ 200, 0}, {14, 400, 1}, {14, 600, 5}, {14, 800, 9}, {14, 1000,  15}, {14,  \
+1200,
+ 24}, {14, 1400, 32}, {14, 1600, 45}, {14,  1800, 51}, {14, 2000, 62}, {16, \
+200,
+ 1}, {16, 400, 2}, {16, 600, 6}, {16, 800, 11}, {16, 1000, 17}, {16, 1200,  \
+27},
+ {16,  1400, 42}, {16, 1600, 47}, {16,  1800, 62}, {16, 2000, 71}, {18, 200, \
+1},
+ {18, 400, 2}, {18, 600, 6}, {18, 800, 12}, {18, 1000, 18}, {18, 1200, 29}, \
+{18,
+ 1400,  42}, {18, 1600, 52}, {18, 1800,  62}, {18, 2000, 77}, {20, 200, 0}, \
+{20,
+ 400, 2}, {20, 600, 9}, {20, 800, 13}, {20,  1000,  20}, {20,  1200,  32},  \
+{20,
+ 1400,  44}, {20, 1600, 56}, {20, 1800,  71}, {20, 2000, 82}, {22, 200, 0}, \
+{22,
+ 400, 3}, {22, 600, 8}, {22, 800, 15}, {22,  1000,  22}, {22,  1200,  35},  \
+{22,
+ 1400,  49}, {22, 1600, 61}, {22, 1800,  74}, {22, 2000, 89}, {24, 200, 1}, \
+{24,
+ 400, 3}, {24, 600, 9}, {24, 800, 17}, {24,  1000,  24}, {24,  1200,  39},  \
+{24,
+ 1400,  52}, {24, 1600, 70}, {24, 1800,  79}, {24, 2000, 96}, {26, 200, 0}, \
+{26,
+ 400, 3}, {26, 600, 10}, {26, 800, 17}, {26,  1000,  25}, {26,  1200,  40}, \
+{26,
+ 1400, 55}, {26, 1600, 75}, {26, 1800, 87}, {26, 2000,  104}, {28, 200, 0}, \
+{28,
+ 400, 4}, {28, 600, 11}, {28, 800, 18}, {28,  1000,  27}, {28,  1200,  43}, \
+{28,
+ 1400, 61}, {28, 1600, 80}, {28, 1800, 91}, {28, 2000,  119}, {30, 200, 1}, \
+{30,
+ 400, 4}, {30, 600, 11}, {30, 800, 19}, {30,  1000,  28}, {30,  1200,  47}, \
+{30,
+ 1400, 69}, {30, 1600, 83}, {30, 1800, 100}, {30, 2000, 119}, {32, 200, 0}, \
+{32,
+ 400, 4}, {32, 600, 12}, {32, 800, 22}, {32,  1000,  33}, {32,  1200,  50}, \
+{32,
+ 1400, 67}, {32, 1600, 88}, {32, 1800, 116}, {32, 2000, 138}, {34, 200, 0}, \
+{34,
+ 400, 5}, {34, 600, 12}, {34, 800, 22}, {34,  1000,  32}, {34,  1200,  52}, \
+{34,
+ 1400, 71}, {34, 1600, 87}, {34, 1800, 114}, {34, 2000, 134}, {36, 200, 0}, \
+{36,
+ 400, 5}, {36, 600, 13}, {36, 800, 23}, {36,  1000,  33}, {36,  1200,  53}, \
+{36,
+ 1400, 89}, {36, 1600,  105}, {36, 1800,  159}, {36, 2000,  135},  {38, 200, \
+0},
+ {38, 400, 6}, {38, 600, 14}, {38, 800, 24}, {38,  1000,  36}, {38,  1200,  \
+66},
+ {38, 1400, 94}, {38, 1600,  130}, {38, 1800,  162}, {38, 2000,  180}, {40, \
+200,
+ 1}, {40, 400, 10}, {40, 600, 27}, {40, 800, 49}, {40,  1000,  67},  {40,  \
+1200,
+ 105}, {40, 1400, 115}, {40, 1600, 156}, {40, 1800, 168}, {40, 2000, 154}};\
+\
+\>", "Input",
+  PageWidth->PaperWidth,
+  AspectRatioFixed->True],
+
+Cell[CellGroupData[{
+
+Cell[TextData[
+"Needs[\"Graphics`Graphics3D`\"];\nplotdata = Partition[\n                \
+Table[rawdata[[i,3]], {i,1,Length[rawdata]}],\n                10];\na3 = \
+ListPlot3D[plotdata,\n        AxesLabel->{\"Dimension\", \"Num Vectors\", \
+Runtime},\n        Ticks->{Table[{i,4*i},{i,0,10}],\n                        \
+Table[{2j,200*j},{j,1,10}],\n                        Automatic},\n        \
+PlotLabel->\"Surface Plot of the Runtime in Seconds\"]"], "Input",
+  AspectRatioFixed->True],
+
+Cell[GraphicsData["PostScript", "\<\
+%!
+%%Creator: Mathematica
+%%AspectRatio: .82055 
+MathPictureStart
+%% SurfaceGraphics
+/Courier findfont 10  scalefont  setfont
+% Scaling calculations
+0.0249355 0.99742 -0.0396341 0.99742 [
+[(Surface Plot of the Runtime in Seconds)] .5 .82055 0 -1.5 Msboxa
+[(4)] .05113 .25884 1 .93395 Msboxa
+[(8)] .11298 .23449 1 .97619 Msboxa
+[(12)] .17647 .20951 .97806 1 Msboxa
+[(16)] .24165 .18387 .93173 1 Msboxa
+[(20)] .30859 .15753 .8854 1 Msboxa
+[(24)] .37738 .13048 .83907 1 Msboxa
+[(28)] .44808 .10268 .79274 1 Msboxa
+[(32)] .52077 .07411 .7464 1 Msboxa
+[(36)] .59555 .04472 .70007 1 Msboxa
+[(40)] .6725 .0145 .65374 1 Msboxa
+[(Dimension)] .30204 .09689 .86223 1 Msboxa
+[(200)] .70814 .04674 -1 .38545 Msboxa
+[(400)] .7413 .0975 -1 .37378 Msboxa
+[(600)] .77288 .14586 -1 .36279 Msboxa
+[(800)] .80299 .19197 -1 .35243 Msboxa
+[(1000)] .83174 .23599 -1 .34264 Msboxa
+[(1200)] .8592 .27805 -1 .33339 Msboxa
+[(1400)] .88548 .31829 -1 .32462 Msboxa
+[(1600)] .91064 .35682 -1 .3163 Msboxa
+[(1800)] .93475 .39375 -1 .30839 Msboxa
+[(2000)] .95788 .42917 -1 .30087 Msboxa
+[(Num Vectors)] .89773 .2266 -1 .34028 Msboxa
+[(0)] .04785 .27682 1 -0.3906 Msboxa
+[(50)] .03893 .33271 1 -0.37954 Msboxa
+[(100)] .02966 .39078 1 -0.36801 Msboxa
+[(150)] .02003 .45116 1 -0.35598 Msboxa
+[(Runtime)] -0.02691 .40064 1 -0.37036 Msboxa
+[ 0 0 0 0 ]
+[ 1 .82055 0 0 ]
+] MathScale
+% Start of Graphics
+1 setlinecap
+1 setlinejoin
+newpath
+[ ] 0 setdash
+0 g
+[(Surface Plot of the Runtime in Seconds)] .5 .82055 0 -1.5 Mshowa
+p
+p
+.002 w
+.06024 .26735 m
+.67932 .02494 L
+s
+P
+p
+.002 w
+.06024 .26735 m
+.0648 .2716 L
+s
+P
+[(4)] .05113 .25884 1 .93395 Mshowa
+p
+.002 w
+.1219 .2432 m
+.12636 .24756 L
+s
+P
+[(8)] .11298 .23449 1 .97619 Mshowa
+p
+.002 w
+.18518 .21843 m
+.18954 .22288 L
+s
+P
+[(12)] .17647 .20951 .97806 1 Mshowa
+p
+.002 w
+.25014 .19299 m
+.25439 .19755 L
+s
+P
+[(16)] .24165 .18387 .93173 1 Mshowa
+p
+.002 w
+.31686 .16687 m
+.32099 .17153 L
+s
+P
+[(20)] .30859 .15753 .8854 1 Mshowa
+p
+.002 w
+.38539 .14003 m
+.3894 .14481 L
+s
+P
+[(24)] .37738 .13048 .83907 1 Mshowa
+p
+.002 w
+.45582 .11245 m
+.45969 .11734 L
+s
+P
+[(28)] .44808 .10268 .79274 1 Mshowa
+p
+.002 w
+.52823 .0841 m
+.53196 .08909 L
+s
+P
+[(32)] .52077 .07411 .7464 1 Mshowa
+p
+.002 w
+.6027 .05494 m
+.60628 .06005 L
+s
+P
+[(36)] .59555 .04472 .70007 1 Mshowa
+p
+.002 w
+.67932 .02494 m
+.68274 .03015 L
+s
+P
+[(40)] .6725 .0145 .65374 1 Mshowa
+[(Dimension)] .30204 .09689 .86223 1 Mshowa
+P
+p
+p
+.002 w
+.67932 .02494 m
+.94594 .43277 L
+s
+P
+p
+.002 w
+.69651 .05122 m
+.69069 .05346 L
+s
+P
+[(200)] .70814 .04674 -1 .38545 Mshowa
+p
+.002 w
+.72962 .10187 m
+.72378 .10405 L
+s
+P
+[(400)] .7413 .0975 -1 .37378 Mshowa
+p
+.002 w
+.76116 .15011 m
+.7553 .15224 L
+s
+P
+[(600)] .77288 .14586 -1 .36279 Mshowa
+p
+.002 w
+.79123 .19611 m
+.78535 .19819 L
+s
+P
+[(800)] .80299 .19197 -1 .35243 Mshowa
+p
+.002 w
+.81994 .24003 m
+.81404 .24205 L
+s
+P
+[(1000)] .83174 .23599 -1 .34264 Mshowa
+p
+.002 w
+.84738 .282 m
+.84146 .28397 L
+s
+P
+[(1200)] .8592 .27805 -1 .33339 Mshowa
+p
+.002 w
+.87362 .32214 m
+.86769 .32407 L
+s
+P
+[(1400)] .88548 .31829 -1 .32462 Mshowa
+p
+.002 w
+.89875 .36058 m
+.89281 .36246 L
+s
+P
+[(1600)] .91064 .35682 -1 .3163 Mshowa
+p
+.002 w
+.92284 .39743 m
+.91688 .39926 L
+s
+P
+[(1800)] .93475 .39375 -1 .30839 Mshowa
+p
+.002 w
+.94594 .43277 m
+.93997 .43456 L
+s
+P
+[(2000)] .95788 .42917 -1 .30087 Mshowa
+[(Num Vectors)] .89773 .2266 -1 .34028 Mshowa
+P
+p
+p
+.002 w
+.06024 .26735 m
+.02494 .49015 L
+s
+P
+p
+.002 w
+.05946 .27229 m
+.06527 .27002 L
+s
+P
+[(0)] .04785 .27682 1 -0.3906 Mshowa
+p
+.002 w
+.05058 .32829 m
+.05641 .32608 L
+s
+P
+[(50)] .03893 .33271 1 -0.37954 Mshowa
+p
+.002 w
+.04136 .38648 m
+.04721 .38432 L
+s
+P
+[(100)] .02966 .39078 1 -0.36801 Mshowa
+p
+.002 w
+.03178 .44698 m
+.03765 .44489 L
+s
+P
+[(150)] .02003 .45116 1 -0.35598 Mshowa
+p
+.001 w
+.05771 .28332 m
+.0612 .28196 L
+s
+P
+p
+.001 w
+.05595 .29443 m
+.05944 .29309 L
+s
+P
+p
+.001 w
+.05418 .30563 m
+.05767 .30429 L
+s
+P
+p
+.001 w
+.05239 .31692 m
+.05588 .31558 L
+s
+P
+p
+.001 w
+.04877 .33975 m
+.05227 .33843 L
+s
+P
+p
+.001 w
+.04694 .3513 m
+.05044 .34998 L
+s
+P
+p
+.001 w
+.0451 .36293 m
+.0486 .36163 L
+s
+P
+p
+.001 w
+.04324 .37466 m
+.04674 .37336 L
+s
+P
+p
+.001 w
+.03948 .39839 m
+.04299 .3971 L
+s
+P
+p
+.001 w
+.03757 .41039 m
+.04109 .40912 L
+s
+P
+p
+.001 w
+.03566 .42249 m
+.03918 .42122 L
+s
+P
+p
+.001 w
+.03372 .43469 m
+.03725 .43342 L
+s
+P
+p
+.001 w
+.02981 .45937 m
+.03334 .45812 L
+s
+P
+p
+.001 w
+.02783 .47186 m
+.03136 .47062 L
+s
+P
+p
+.001 w
+.02584 .48445 m
+.02937 .48322 L
+s
+P
+[(Runtime)] -0.02691 .40064 1 -0.37036 Mshowa
+P
+0 0 m
+1 0 L
+1 .82055 L
+0 .82055 L
+closepath
+clip
+newpath
+p
+.002 w
+.06024 .26735 m
+.02494 .49015 L
+s
+.02494 .49015 m
+.40296 .79562 L
+s
+.40296 .79562 m
+.41001 .59401 L
+s
+.41001 .59401 m
+.06024 .26735 L
+s
+.67932 .02494 m
+.94594 .43277 L
+s
+.94594 .43277 m
+.97506 .64585 L
+s
+.97506 .64585 m
+.69286 .25814 L
+s
+.69286 .25814 m
+.67932 .02494 L
+s
+.06024 .26735 m
+.02494 .49015 L
+s
+.02494 .49015 m
+.69286 .25814 L
+s
+.69286 .25814 m
+.67932 .02494 L
+s
+.67932 .02494 m
+.06024 .26735 L
+s
+.41001 .59401 m
+.94594 .43277 L
+s
+.94594 .43277 m
+.97506 .64585 L
+s
+.97506 .64585 m
+.40296 .79562 L
+s
+.40296 .79562 m
+.41001 .59401 L
+s
+P
+p
+.62 .716 .914 r
+.0015 w
+.39451 .58425 .40982 .59955 .46421 .59234 .44926 .5737 Metetra
+.611 .675 .887 r
+.44926 .5737 .46421 .59234 .52009 .5932 .50541 .56493 Metetra
+.605 .593 .813 r
+.50541 .56493 .52009 .5932 .57791 .59936 .56312 .55802 Metetra
+.596 .529 .75 r
+.56312 .55802 .57791 .59936 .63772 .60144 .62258 .55303 Metetra
+.534 .473 .734 r
+.62258 .55303 .63772 .60144 .70082 .62565 .68485 .56733 Metetra
+.548 .461 .709 r
+.68485 .56733 .70082 .62565 .76474 .61927 .74971 .58003 Metetra
+.487 .483 .778 r
+.74971 .58003 .76474 .61927 .83397 .64842 .81824 .60246 Metetra
+.518 .48 .754 r
+.81824 .60246 .83397 .64842 .90299 .64449 .88972 .62129 Metetra
+.534 .624 .887 r
+.88972 .62129 .90299 .64449 .9701 .60949 .96243 .62404 Metetra
+.626 .731 .923 r
+.37887 .56969 .39451 .58425 .44926 .5737 .43397 .55782 Metetra
+.604 .71 .919 r
+.43397 .55782 .44926 .5737 .50541 .56493 .49044 .54876 Metetra
+.587 .704 .924 r
+.49044 .54876 .50541 .56493 .56312 .55802 .54848 .54155 Metetra
+.587 .704 .924 r
+.54848 .54155 .56312 .55802 .62258 .55303 .60823 .53413 Metetra
+.508 .643 .916 r
+.60823 .53413 .62258 .55303 .68485 .56733 .67025 .53728 Metetra
+.446 .508 .829 r
+.67025 .53728 .68485 .56733 .74971 .58003 .73577 .55832 Metetra
+.551 .64 .892 r
+.73577 .55832 .74971 .58003 .81824 .60246 .80257 .55752 Metetra
+.413 .419 .757 r
+.80257 .55752 .81824 .60246 .88972 .62129 .87661 .60125 Metetra
+.773 .762 .844 r
+.87661 .60125 .88972 .62129 .96243 .62404 .94323 .55348 Metetra
+.626 .731 .923 r
+.36293 .55485 .37887 .56969 .43397 .55782 .41837 .54269 Metetra
+.609 .726 .928 r
+.41837 .54269 .43397 .55782 .49044 .54876 .47518 .53229 Metetra
+.587 .704 .924 r
+.47518 .53229 .49044 .54876 .54848 .54155 .53356 .52477 Metetra
+.587 .704 .924 r
+.53356 .52477 .54848 .54155 .60823 .53413 .59366 .51702 Metetra
+.49 .662 .938 r
+.59366 .51702 .60823 .53413 .67025 .53728 .65603 .51989 Metetra
+.5 .667 .937 r
+.65603 .51989 .67025 .53728 .73577 .55832 .72069 .52175 Metetra
+.576 .549 .788 r
+.72069 .52175 .73577 .55832 .80257 .55752 .7875 .5203 Metetra
+.524 .52 .793 r
+.7875 .5203 .80257 .55752 .87661 .60125 .85807 .53147 Metetra
+.569 .462 .693 r
+.85807 .53147 .87661 .60125 .94323 .55348 .93078 .53485 Metetra
+.634 .734 .92 r
+.34669 .53973 .36293 .55485 .41837 .54269 .4025 .52622 Metetra
+.604 .711 .919 r
+.4025 .52622 .41837 .54269 .47518 .53229 .45962 .51654 Metetra
+.582 .717 .935 r
+.45962 .51654 .47518 .53229 .53356 .52477 .51835 .50872 Metetra
+.573 .713 .937 r
+.51835 .50872 .53356 .52477 .59366 .51702 .57885 .50173 Metetra
+.502 .698 .957 r
+.57885 .50173 .59366 .51702 .65603 .51989 .64149 .50105 Metetra
+.529 .666 .924 r
+.64149 .50105 .65603 .51989 .72069 .52175 .70637 .50036 Metetra
+.506 .629 .906 r
+.70637 .50036 .72069 .52175 .7875 .5203 .774 .50417 Metetra
+.369 .628 .953 r
+.774 .50417 .7875 .5203 .85807 .53147 .84518 .51627 Metetra
+.425 .677 .968 r
+.84518 .51627 .85807 .53147 .93078 .53485 .91879 .52177 Metetra
+.64 .749 .928 r
+.33008 .52535 .34669 .53973 .4025 .52622 .38628 .51048 Metetra
+.609 .726 .928 r
+.38628 .51048 .4025 .52622 .45962 .51654 .44377 .49944 Metetra
+.604 .711 .919 r
+.44377 .49944 .45962 .51654 .51835 .50872 .50285 .48915 Metetra
+.601 .684 .9 r
+.50285 .48915 .51835 .50872 .57885 .50173 .56364 .47964 Metetra
+.528 .629 .894 r
+.56364 .47964 .57885 .50173 .64149 .50105 .62662 .48076 Metetra
+.488 .633 .918 r
+.62662 .48076 .64149 .50105 .70637 .50036 .69216 .48527 Metetra
+.525 .725 .965 r
+.69216 .48527 .70637 .50036 .774 .50417 .75968 .48085 Metetra
+.544 .637 .893 r
+.75968 .48085 .774 .50417 .84518 .51627 .82994 .47974 Metetra
+.557 .551 .803 r
+.82994 .47974 .84518 .51627 .91879 .52177 .90318 .48095 Metetra
+.635 .721 .909 r
+.31326 .5086 .33008 .52535 .38628 .51048 .36975 .49443 Metetra
+.609 .726 .928 r
+.36975 .49443 .38628 .51048 .44377 .49944 .42758 .48305 Metetra
+.609 .726 .928 r
+.42758 .48305 .44377 .49944 .50285 .48915 .48704 .47136 Metetra
+.596 .707 .922 r
+.48704 .47136 .50285 .48915 .56364 .47964 .54821 .46149 Metetra
+.532 .681 .933 r
+.54821 .46149 .56364 .47964 .62662 .48076 .61144 .45899 Metetra
+.532 .642 .904 r
+.61144 .45899 .62662 .48076 .69216 .48527 .67706 .45862 Metetra
+.54 .603 .866 r
+.67706 .45862 .69216 .48527 .75968 .48085 .74526 .45939 Metetra
+.582 .679 .907 r
+.74526 .45939 .75968 .48085 .82994 .47974 .8153 .45091 Metetra
+.483 .562 .86 r
+.8153 .45091 .82994 .47974 .90318 .48095 .89007 .4622 Metetra
+.642 .736 .917 r
+.29605 .49258 .31326 .5086 .36975 .49443 .35294 .47701 Metetra
+.612 .714 .917 r
+.35294 .47701 .36975 .49443 .42758 .48305 .41111 .46528 Metetra
+.612 .714 .917 r
+.41111 .46528 .42758 .48305 .48704 .47136 .47092 .45322 Metetra
+.604 .711 .919 r
+.47092 .45322 .48704 .47136 .54821 .46149 .53246 .44189 Metetra
+.548 .674 .921 r
+.53246 .44189 .54821 .46149 .61144 .45899 .59601 .43791 Metetra
+.552 .664 .911 r
+.59601 .43791 .61144 .45899 .67706 .45862 .66183 .43379 Metetra
+.525 .616 .885 r
+.66183 .43379 .67706 .45862 .74526 .45939 .73041 .43521 Metetra
+.58 .655 .887 r
+.73041 .43521 .74526 .45939 .8153 .45091 .80095 .4274 Metetra
+.541 .646 .902 r
+.80095 .4274 .8153 .45091 .89007 .4622 .87464 .42521 Metetra
+.648 .751 .924 r
+.27842 .47728 .29605 .49258 .35294 .47701 .33574 .4603 Metetra
+.618 .729 .925 r
+.33574 .4603 .35294 .47701 .41111 .46528 .3943 .44715 Metetra
+.604 .711 .92 r
+.3943 .44715 .41111 .46528 .47092 .45322 .45446 .43578 Metetra
+.61 .726 .928 r
+.45446 .43578 .47092 .45322 .53246 .44189 .5164 .42299 Metetra
+.542 .685 .932 r
+.5164 .42299 .53246 .44189 .59601 .43791 .58033 .41864 Metetra
+.561 .693 .929 r
+.58033 .41864 .59601 .43791 .66183 .43379 .64647 .41188 Metetra
+.527 .652 .914 r
+.64647 .41188 .66183 .43379 .73041 .43521 .71528 .41059 Metetra
+.601 .664 .883 r
+.71528 .41059 .73041 .43521 .80095 .4274 .78592 .3988 Metetra
+.554 .61 .864 r
+.78592 .3988 .80095 .4274 .87464 .42521 .85994 .39602 Metetra
+.642 .723 .907 r
+.26059 .45956 .27842 .47728 .33574 .4603 .31819 .44325 Metetra
+.626 .731 .922 r
+.31819 .44325 .33574 .4603 .3943 .44715 .37717 .42866 Metetra
+.612 .714 .917 r
+.37717 .42866 .3943 .44715 .45446 .43578 .4377 .41583 Metetra
+.614 .702 .907 r
+.4377 .41583 .45446 .43578 .5164 .42299 .50002 .40262 Metetra
+.565 .682 .918 r
+.50002 .40262 .5164 .42299 .58033 .41864 .56427 .39564 Metetra
+.564 .657 .899 r
+.56427 .39564 .58033 .41864 .64647 .41188 .6308 .38954 Metetra
+.576 .675 .907 r
+.6308 .38954 .64647 .41188 .71528 .41059 .6996 .38094 Metetra
+.58 .615 .852 r
+.6996 .38094 .71528 .41059 .78592 .3988 .77092 .3732 Metetra
+.56 .644 .89 r
+.77092 .3732 .78592 .3988 .85994 .39602 .84511 .36752 Metetra
+.649 .738 .914 r
+.24232 .44255 .26059 .45956 .31819 .44325 .30035 .42479 Metetra
+.612 .714 .918 r
+.30035 .42479 .31819 .44325 .37717 .42866 .35957 .41195 Metetra
+.633 .746 .93 r
+.35957 .41195 .37717 .42866 .4377 .41583 .42062 .39547 Metetra
+.614 .702 .907 r
+.42062 .39547 .4377 .41583 .50002 .40262 .4833 .38183 Metetra
+.574 .686 .917 r
+.4833 .38183 .50002 .40262 .56427 .39564 .54792 .37331 Metetra
+.577 .675 .906 r
+.54792 .37331 .56427 .39564 .6308 .38954 .61475 .3645 Metetra
+.581 .654 .887 r
+.61475 .3645 .6308 .38954 .6996 .38094 .68392 .35538 Metetra
+.56 .644 .89 r
+.68392 .35538 .6996 .38094 .77092 .3732 .75582 .34942 Metetra
+.584 .679 .906 r
+.75582 .34942 .77092 .3732 .84511 .36752 .83001 .33851 Metetra
+.656 .752 .921 r
+.22357 .42625 .24232 .44255 .30035 .42479 .28208 .40702 Metetra
+.634 .733 .92 r
+.28208 .40702 .30035 .42479 .35957 .41195 .34184 .39055 Metetra
+.622 .693 .895 r
+.34184 .39055 .35957 .41195 .42062 .39547 .40315 .3758 Metetra
+.62 .716 .915 r
+.40315 .3758 .42062 .39547 .4833 .38183 .46625 .36062 Metetra
+.582 .689 .915 r
+.46625 .36062 .4833 .38183 .54792 .37331 .53124 .35054 Metetra
+.569 .671 .908 r
+.53124 .35054 .54792 .37331 .61475 .3645 .59848 .34237 Metetra
+.59 .693 .914 r
+.59848 .34237 .61475 .3645 .68392 .35538 .66799 .33048 Metetra
+.593 .671 .894 r
+.66799 .33048 .68392 .35538 .75582 .34942 .73989 .31818 Metetra
+.567 .609 .854 r
+.73989 .31818 .75582 .34942 .83001 .33851 .81487 .31132 Metetra
+.656 .74 .911 r
+.20453 .40853 .22357 .42625 .28208 .40702 .26341 .38888 Metetra
+.634 .733 .92 r
+.26341 .38888 .28208 .40702 .34184 .39055 .32356 .37199 Metetra
+.627 .731 .922 r
+.32356 .37199 .34184 .39055 .40315 .3758 .38532 .35572 Metetra
+.62 .716 .915 r
+.38532 .35572 .40315 .3758 .46625 .36062 .44883 .34008 Metetra
+.588 .704 .923 r
+.44883 .34008 .46625 .36062 .53124 .35054 .51422 .32843 Metetra
+.548 .674 .921 r
+.51422 .32843 .53124 .35054 .59848 .34237 .58192 .32205 Metetra
+.625 .732 .924 r
+.58192 .32205 .59848 .34237 .66799 .33048 .6517 .30394 Metetra
+.559 .644 .89 r
+.6517 .30394 .66799 .33048 .73989 .31818 .72441 .29686 Metetra
+.592 .72 .932 r
+.72441 .29686 .73989 .31818 .81487 .31132 .79933 .28242 Metetra
+.656 .728 .902 r
+.1852 .38937 .20453 .40853 .26341 .38888 .24445 .36928 Metetra
+.635 .721 .91 r
+.24445 .36928 .26341 .38888 .32356 .37199 .30497 .35194 Metetra
+.635 .721 .91 r
+.30497 .35194 .32356 .37199 .38532 .35572 .36717 .33411 Metetra
+.621 .705 .905 r
+.36717 .33411 .38532 .35572 .44883 .34008 .43106 .31799 Metetra
+.598 .696 .911 r
+.43106 .31799 .44883 .34008 .51422 .32843 .49686 .30473 Metetra
+.607 .688 .9 r
+.49686 .30473 .51422 .32843 .58192 .32205 .56481 .28991 Metetra
+.578 .607 .846 r
+.56481 .28991 .58192 .32205 .6517 .30394 .63522 .28031 Metetra
+.619 .706 .907 r
+.63522 .28031 .6517 .30394 .72441 .29686 .70776 .26223 Metetra
+.59 .606 .836 r
+.70776 .26223 .72441 .29686 .79933 .28242 .78316 .24943 Metetra
+.657 .74 .911 r
+.16536 .37089 .1852 .38937 .24445 .36928 .22499 .35035 Metetra
+.642 .736 .917 r
+.22499 .35035 .24445 .36928 .30497 .35194 .28598 .33147 Metetra
+.628 .719 .912 r
+.28598 .33147 .30497 .35194 .36717 .33411 .34851 .31426 Metetra
+.634 .733 .919 r
+.34851 .31426 .36717 .33411 .43106 .31799 .41292 .29545 Metetra
+.598 .696 .911 r
+.41292 .29545 .43106 .31799 .49686 .30473 .47912 .28168 Metetra
+.613 .702 .908 r
+.47912 .28168 .49686 .30473 .56481 .28991 .54751 .26518 Metetra
+.592 .682 .903 r
+.54751 .26518 .56481 .28991 .63522 .28031 .61823 .25158 Metetra
+.626 .666 .869 r
+.61823 .25158 .63522 .28031 .70776 .26223 .69112 .23171 Metetra
+.583 .636 .869 r
+.69112 .23171 .70776 .26223 .78316 .24943 .76702 .21939 Metetra
+.657 .74 .911 r
+.14509 .35201 .16536 .37089 .22499 .35035 .20511 .33101 Metetra
+.642 .736 .917 r
+.20511 .33101 .22499 .35035 .28598 .33147 .2665 .31166 Metetra
+.642 .736 .917 r
+.2665 .31166 .28598 .33147 .34851 .31426 .32959 .29176 Metetra
+.635 .71 .901 r
+.32959 .29176 .34851 .31426 .41292 .29545 .3944 .27242 Metetra
+.614 .702 .907 r
+.3944 .27242 .41292 .29545 .47912 .28168 .46105 .25587 Metetra
+.627 .686 .885 r
+.46105 .25587 .47912 .28168 .54751 .26518 .52984 .23653 Metetra
+.62 .663 .87 r
+.52984 .23653 .54751 .26518 .61823 .25158 .6008 .21772 Metetra
+.612 .625 .84 r
+.6008 .21772 .61823 .25158 .69112 .23171 .67411 .19946 Metetra
+.613 .642 .855 r
+.67411 .19946 .69112 .23171 .76702 .21939 .74991 .18059 Metetra
+.664 .741 .908 r
+.12438 .33273 .14509 .35201 .20511 .33101 .18491 .31016 Metetra
+.649 .726 .905 r
+.18491 .31016 .20511 .33101 .2665 .31166 .24678 .28921 Metetra
+.642 .712 .899 r
+.24678 .28921 .2665 .31166 .32959 .29176 .31026 .26879 Metetra
+.648 .715 .896 r
+.31026 .26879 .32959 .29176 .3944 .27242 .3756 .24668 Metetra
+.634 .688 .883 r
+.3756 .24668 .3944 .27242 .46105 .25587 .44271 .22619 Metetra
+.637 .661 .857 r
+.44271 .22619 .46105 .25587 .52984 .23653 .51185 .20395 Metetra
+.629 .641 .843 r
+.51185 .20395 .52984 .23653 .6008 .21772 .58306 .18219 Metetra
+.631 .627 .828 r
+.58306 .18219 .6008 .21772 .67411 .19946 .65643 .15861 Metetra
+.621 .595 .803 r
+.65643 .15861 .67411 .19946 .74991 .18059 .73213 .13546 Metetra
+.664 .741 .908 r
+.10321 .31302 .12438 .33273 .18491 .31016 .16415 .28995 Metetra
+.657 .739 .911 r
+.16415 .28995 .18491 .31016 .24678 .28921 .22655 .26739 Metetra
+.656 .728 .902 r
+.22655 .26739 .24678 .28921 .31026 .26879 .29062 .24422 Metetra
+.654 .706 .885 r
+.29062 .24422 .31026 .26879 .3756 .24668 .35643 .22043 Metetra
+.647 .693 .879 r
+.35643 .22043 .3756 .24668 .44271 .22619 .42401 .19709 Metetra
+.649 .675 .861 r
+.42401 .19709 .44271 .22619 .51185 .20395 .49355 .17196 Metetra
+.646 .657 .846 r
+.49355 .17196 .51185 .20395 .58306 .18219 .56506 .14612 Metetra
+.636 .629 .826 r
+.56506 .14612 .58306 .18219 .65643 .15861 .63867 .12067 Metetra
+.639 .624 .819 r
+.63867 .12067 .65643 .15861 .73213 .13546 .71441 .09332 Metetra
+.664 .741 .908 r
+.08158 .29288 .10321 .31302 .16415 .28995 .14293 .26929 Metetra
+.664 .741 .908 r
+.14293 .26929 .16415 .28995 .22655 .26739 .20587 .24509 Metetra
+.663 .73 .9 r
+.20587 .24509 .22655 .26739 .29062 .24422 .27047 .22026 Metetra
+.655 .717 .894 r
+.27047 .22026 .29062 .24422 .35643 .22043 .33672 .19587 Metetra
+.661 .719 .891 r
+.33672 .19587 .35643 .22043 .42401 .19709 .40486 .16969 Metetra
+.652 .695 .877 r
+.40486 .16969 .42401 .19709 .49355 .17196 .47485 .14391 Metetra
+.658 .698 .875 r
+.47485 .14391 .49355 .17196 .56506 .14612 .54683 .11626 Metetra
+.651 .685 .869 r
+.54683 .11626 .56506 .14612 .63867 .12067 .62089 .08897 Metetra
+.655 .678 .86 r
+.62089 .08897 .63867 .12067 .71441 .09332 .69705 .05974 Metetra
+.664 .741 .908 r
+.05946 .27229 .08158 .29288 .14293 .26929 .12122 .24816 Metetra
+.664 .741 .908 r
+.12122 .24816 .14293 .26929 .20587 .24509 .1846 .22341 Metetra
+.664 .741 .908 r
+.1846 .22341 .20587 .24509 .27047 .22026 .24966 .19799 Metetra
+.664 .741 .908 r
+.24966 .19799 .27047 .22026 .33672 .19587 .31649 .17189 Metetra
+.662 .73 .9 r
+.31649 .17189 .33672 .19587 .40486 .16969 .38514 .14508 Metetra
+.662 .73 .9 r
+.38514 .14508 .40486 .16969 .47485 .14391 .4557 .11752 Metetra
+.661 .719 .892 r
+.4557 .11752 .47485 .14391 .54683 .11626 .52824 .08918 Metetra
+.655 .717 .893 r
+.52824 .08918 .54683 .11626 .62089 .08897 .60288 .06118 Metetra
+.661 .719 .892 r
+.60288 .06118 .62089 .08897 .69705 .05974 .67969 .03119 Metetra
+P
+p
+.002 w
+.67932 .02494 m
+.94594 .43277 L
+s
+.94594 .43277 m
+.97506 .64585 L
+s
+.97506 .64585 m
+.69286 .25814 L
+s
+.69286 .25814 m
+.67932 .02494 L
+s
+.06024 .26735 m
+.02494 .49015 L
+s
+.02494 .49015 m
+.69286 .25814 L
+s
+.69286 .25814 m
+.67932 .02494 L
+s
+.67932 .02494 m
+.06024 .26735 L
+s
+P
+p
+p
+.002 w
+.06024 .26735 m
+.67932 .02494 L
+s
+P
+p
+.002 w
+.06024 .26735 m
+.0648 .2716 L
+s
+P
+[(4)] .05113 .25884 1 .93395 Mshowa
+p
+.002 w
+.1219 .2432 m
+.12636 .24756 L
+s
+P
+[(8)] .11298 .23449 1 .97619 Mshowa
+p
+.002 w
+.18518 .21843 m
+.18954 .22288 L
+s
+P
+[(12)] .17647 .20951 .97806 1 Mshowa
+p
+.002 w
+.25014 .19299 m
+.25439 .19755 L
+s
+P
+[(16)] .24165 .18387 .93173 1 Mshowa
+p
+.002 w
+.31686 .16687 m
+.32099 .17153 L
+s
+P
+[(20)] .30859 .15753 .8854 1 Mshowa
+p
+.002 w
+.38539 .14003 m
+.3894 .14481 L
+s
+P
+[(24)] .37738 .13048 .83907 1 Mshowa
+p
+.002 w
+.45582 .11245 m
+.45969 .11734 L
+s
+P
+[(28)] .44808 .10268 .79274 1 Mshowa
+p
+.002 w
+.52823 .0841 m
+.53196 .08909 L
+s
+P
+[(32)] .52077 .07411 .7464 1 Mshowa
+p
+.002 w
+.6027 .05494 m
+.60628 .06005 L
+s
+P
+[(36)] .59555 .04472 .70007 1 Mshowa
+p
+.002 w
+.67932 .02494 m
+.68274 .03015 L
+s
+P
+[(40)] .6725 .0145 .65374 1 Mshowa
+[(Dimension)] .30204 .09689 .86223 1 Mshowa
+P
+% End of Graphics
+MathPictureEnd
+\
+\>"], "Graphics",
+  Evaluatable->False,
+  AspectRatioFixed->True,
+  ImageSize->{381, 313},
+  ImageMargins->{{34, Inherited}, {Inherited, Inherited}},
+  ImageCache->GraphicsData["Bitmap", "\<\
+CF5dJ6E]HGAYHf4PAg9QL6QYHg<PAVmbKF5d0`40005m0001>@P10`4000010?ooo`3oooooZZ[oZSLg
+=gIfM[Fe]OCdm03oZS/k>gYjN[Vi^OShn03ooeGooj[oooclo5H/1EGooj[ooc/k>gYjN[Vi^OShn03o
+oclo?ginO[fm_Oclo5D00:X00?l00000EED0EJX00=d81Slo?ginO[fm_Oclo0<30d92@X61PL30`000
+EED0EJX0EOl0E@00ZUD0ZZX0E@<30d92@X61PL30`000E@L71dI6AXF5QLC4a000ZUD0ZZX0Z_l0ZP00
+e5D0ojX0ZPL71dI6AXF5QLC4a000ZP/;2dY:BXV9RLS8b000oeD0ojX0ool0o`1E05EE0:X0o`/;2dY:
+BXV9RLS8b000o`l?3di>CXf=SLc<c01E05EE0:YE0?mE001EEEEEEJYE00l?3di>CXf=SLc<c01E01<C
+4e9BDY6ATM3@d01EEEEEEJYEEOmEE@1EZUEEZZYEEA<C4e9BDY6ATM3@d01EEALG5eIFEYFEUMCDe01E
+ZUEEZZYEZ_mEZP1EoeEEojYEZQLG5eIFEYFEUMCDe01EZQ/K6eYJFYVIVMSHf01EoeEEojYEoomEo`2Z
+05FZ0:YEoa/K6eYJFYVIVMSHf01EoalO7eiNGYfMWMcLg02Z05FZ0:ZZ0?nZ002ZEEFZEJZZ01lO7eiN
+GYfMWMcLg02Z02<S8f9RHZ6QXN3Ph02ZEEFZEJZZEOnZE@2ZZUFZZZZZEB<S8f9RHZ6QXN3Ph02ZEBLW
+9fIVIZFUYNCTi02ZZUFZZZZZZ_nZZP2ZoeFZojZZZRLW9fIVIZFUYNCTi02ZZR/[:fYZJZVYZNSXj02Z
+oeFZojZZoonZo`3o05Go0:ZZob/[:fYZJZVYZNSXj02Zobl_;fi^KZf][Nc/k03o05Go0:[o0?oo003o
+EEGoEJ[o02l_;fi^KZf][Nc/k03o03<c<g9bL[6a/O3`l03oEEGoEJ[oEOooE@3oZUGoZZ[oEC<c<g9b
+L[6a/O3`l03oECLg=gIfM[Fe]OCdm03oZUGoZZ[oZP000?l0OP000?l0OP000?l0OP000?l0OP000?l0
+OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0
+OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0
+OP000?l0OP000?l0OP000?l0OP000?l0OP000?l0OP000>l00ol300;oQP000?0000Go0000o`020003
+o`0008<0003^00Co0P001?l00?n50000kP000ol0o`030004o`00ohD0003^0003o`3o00<000Co003o
+Q@000>l00_l400;oQP000?l0OP000?l0OP000?l0OP000=L00ol400;oW@000=X000Co003o0P000ol0
+000E00;oP`000=X000Co003o0P000ol0000B00?o00<0ool0PP000=P00_l300?o4`02o`<00ol800Co
+0`02o`@00_m[0000fP001?l00?lB00?o0P03o`04A_l0o`P000?o00000P001?l00?l20004o`00ofX0
+003G00?o1003o``00ol200?o00A6cTK>0ol90005o`000?l00P001?l00?l20003o`0006P0003[00;o
+0P03o`09A/i6cTK>A_m600;o2@001?l00?l20004o`00o`8000?o0000J0000>P00ol200;o00m6cTK>
+A/i6cTK>olko0?l01@001?l00?l20004o`00o`8000Co003oJP000<400ol300Co6`02o`800ol03li6
+cTK>A/i6cTK>A_m6cP03o`D00_l400;o1002of/000340005o`000?l06P03o`0F0?oooli6cTK>A/i6
+cTK>A/i6c_o>AP?oOP000<@000?o00000P000ol0000E00Ko01W>A/i6cTK>A/i6cTK>A/i6cTK>oli6
+o`3o07d0003200;o1P000ol0000A00?o01`0ooooA/i6cTK>A/i6cTK>A/i6cTK>A/i6odK>0omm0000
+a0001?l00?l20003o`0000l00_l0703ooom6odK>A/i6cTK>A/i6cTK>A/i6cTK>A/h3o`04c_l0og`0
+003100?o1002o`l00ol0703oodK>A/i6odK>A/i6cTK>A/i6cTK>A/i6cTH3o`07mLkec_l0o`1k0000
+eP03o`0L0?oooli6cTK>A/kocTK>A/i6cTK>A/i6cTK>AP?o00SUc_o>iLkUcP;oN`0005P01Ol200Go
+00H0o`3o0?l200Co00@0ool00_l00`3oo`02o`801Ol200?o0P02o`030?oo04H00_l200;o01W>A/i6
+cTK>A/i6c_o>A/i6cTK>A/i6cTK>00;o00kec_G>mOoec_G>mOl0ogX0001I0005o`000?l00`002ol0
+003o0?l0o`3o00D000Co003o1@000ol000020005o`000?l00`000ol0o`020003o`0004800ol200;o
+01U6cTK>A/i6cTK>A/i6c_o>A/i6cTK>A/i600;o017>iLkUc^G>olkUc^G>iOl0o`1i0000F@001Ol0
+003o00<000[o0000o`3o0?l01Ol01@3o003o00801?l40005o`000?l00`000ol0o`020003o`0001`0
+1?l300;o6`02o`800ol06<i6cTK>A/i6cTK>A/i6cTKoA/i6cTK>AP?o01?ec_G>mLkec_GomLkec_G>
+o`3o07T0001I0005o`000?l00`002ol0003o0?l0o`3o00<000?o0?l00P001?l00?l70005o`000?l0
+0`000ol0o`020003o`0001d000?o00000P001?l00?lG00?o0P02o`0IcTK>A/i6cTK>A/i6cTK>A/i6
+cTKoA/i6cP02o`0GiLkUc^G>iLkUc^G>olkUc^G>iLko0?l02003o`<00_l400;oHP0005T000Go0000
+o`0200;o0P06o`800ol00`3oo`03o`801?l300;o1003o`030?oo00?o80001Ol0003o008000?o0000
+4`02o`030?oo00;o01Q6cTK>A/i6cTK>A/i6cTK>A/i6cTK>olh3o`0Jc_G>mLkec_G>mLkec_GomLke
+c_G>mLko0?l80005o`000?l00P001?l00?l20003o`0005l0001H00GoD@001?l00002oa<00ol200?o
+01S>A/i6cTK>A/i6cTK>A/i6cTK>A/i6cTH2o`0Mc^G>iLkUc^G>iLkUc^G>iLkoc^G>iLkUc^Go0?l0
+1P04o`8000Co003o0P001?l00?mQ0000H@000ol0000K0003o`0002T000Co003o0P001?l00?l?00?o
+0P03o`0Hc_o>A/i6cTK>A/i6cTK>A/i6cTK>A/i60ol070KomLkec_G>mLkec_G>mLkec_GomLkec_G>
+mLh2o`030?l000@000?o0?l00`001?l00?l20004o`00of40002/00;o1002o`h00_l200?o01S>A/i6
+c_o>A/i6cTK>A/i6cTK>A/i6cTH3o`0LmLkec_GoiLkUc^G>iLkUc^G>iLkUc_o>iLkUcP?o00C>o`3o
+1@000ol0o`030004o`00o`8000Co003oH@000;l00ol0703oooo>A/i6cTK>A/kocTK>A/i6cTK>A/i6
+cTH3o`0L1/h6cPK>1/koc_G>mLkec_G>mLkec_G>mOoecP?o00O>YLjUc_l000;o1002o`@00_l400;o
+HP000;d00_l200;o01W>A/i6cTK>A/i6cTKoA/i6cTK>A/i6cTK>00;o01cec_G>mLkec_G>mLkoc^G>
+iLkUc^G>iLkUc^G>0ol02<jEcYG>ULjE0_l00`3o001c0000UP04o`<00olJ00?o01`0ooooA/i6cTK>
+A/i6cTK>A/i6odK>A/i6cTK>0ol06lh6cPK>1/h6cPK>1/h6c_o>mLkec_G>mLkecP04o`0;YLjUcZG>
+YLjUc_l00P000ol0001b0000U`000ol000040003o`0001L00_l0703ooom6cTK>A/i6cTK>A/i6cTK>
+A/kocTK>A/h3o`0Kc_G>mLkec_G>mLkec_G>mLkeonG>iLkUc^G>00?o013>ULkocYG>ULjEcYG>ULko
+0P000ol0001a0000V0001?l00004oaD01_l064K>A/i6cTK>A/i6cTK>A/i6cTK>A/kocP?o01_>1/h6
+cPK>1/h6cPK>1/h6cPK>1/h6ooG>mLh00ol04ljUcZG>YLkocZG>YLjUcZG>YOl00`000ol0001`0000
+V@001_l00?l0oa@00_l0703oodKoA/i6cTK>A/i6cTK>A/i6cTK>A/i6cTH2o`0Kc_G>mLkec_G>mLke
+c_G>mLkec_G>mLkec_o>00?o01O>ULjEcYG>ULjEoiG>ULjEcYG>ULjEo`020003o`000700002F0004
+o`00o`8000?o0?l04@06o`0Hc_o>A/i6cTK>A/i6cTK>A/i6cTK>A/i60ol06lko1/h6cPK>1/h6cPK>
+1/h6cPK>1/h6cPK>1P02o`0JcZG>YLjUcZG>YLjUc_o>YLjUcZG>YLjUc_l30003o`0006l0002G00;o
+1002o`h00ol06`3ooliFcUK>oli6cTK>A/i6cTK>A/i6cTK>AP03o`0KA/i6cTKomLkec_G>mLkec_G>
+mLkec_G>mLke00?o01fUoiG>ULjEcYG>ULjEcYGoULjEcYG>ULjEcYG>o`030003o`0006h0002[00;o
+01`0ooooI/iVcVK>I/kocTK>A/i6cTK>A/i6cTK>0_l06lkec_G>mLkec_l6cPK>1/h6cPK>1/h6cPK>
+1P03o`0PULjEcYGoYLjUcZG>YLjUcZG>oljUcZG>YLjUcZG>YOl30003o`0006h0002X00?o01/0oomF
+cUK>E/iFcUK>E/kocTK>A/i6cTK>A/h00ol06/i6cTK>A/i6cTK>A_oec_G>mLkec_G>mLke0ol08jG>
+YLjUcZG>oljEcYG>ULjEcYG>UOnEcYG>ULjEcYG>ULko00@000?o0000K@0008801?l300;o6`02o`0L
+0?oooliVcVK>I/iVcVK>I/iVodK>A/i6cTK>AP;o01[ec_G>mLkec_G>mLkec_GocPK>1/h6cPK>1P?o
+02BEcYG>ULjEcYG>ULkocZG>YLjUcZG>YLkocZG>YLjUcZG>YLh3o`@000?o00001P02o`@00_l400;o
+F00008<000?o00000P001?l00?lG00?o01/0ooo>E/iFcUK>E/iFcUK>E/iFcUKoA/i6cTH00ol06DK>
+A/i6cTK>A/i6cTK>A/i6c_o>mLkec_D00ol09:G>YLjUcZG>YLjUcZG>YOnEcYG>ULjEcYG>UOnEcYG>
+ULjEcP?o00>5c_l010000ol000050004o`00o`8000Co003o0P001?l00?mG0000Q0001Ol0003o0080
+00?o00004`06o`0GI/iVcVK>I/iVcVK>I/iVcVK>I/iVodH00ol06Lkec_G>mLkec_G>mLkec_G>mLke
+c_GocPH00ol099G>ULjEcYG>ULjEcYG>ULjEcYGoYLjUcZG>YLjUc_o>YLjUcP?o00NUcZG>YLko00@0
+00?o000010001?l00?l20004o`00o`8000Co003oE`0008D000Co003o0P000ol0000@00?o01/0oooo
+cUK>E/iFcUK>E/iFcUK>E/iFcUK>E/h00_l06DK>A/i6cTK>A/i6cTK>A/i6cTK>A/i6cTH00ol09:G>
+YLjUcZG>YLjUcZG>YLjUcZG>YLjUoiG>ULjEcYG>UOnEcP?o00Z5cXG>QLj5cXGo1@000ol0000300?o
+0`001?l00?l20004o`00oeL000220004o`00o`8000Co003o3`03o`0K0?ooolkocVK>I/iVcVK>I/iV
+cVK>I/iVcVK>00?o01S>ooG>mLkec_G>mLkec_G>mLkec_G>mLh3o`0TaOnEcYG>ULjEcYG>ULjEcYG>
+ULjEcYG>ULkocZG>YLjUcZG>0ol03JG>YLjUcZG>YLjUc_l01@000ol000030003o`0000<000Co003o
+0P001?l00?mG0000P`02o`@00_l>00;o0P02o`0GcUK>E/kocUK>E/iFcUK>E/iFcUK>E/h00ol06<hF
+cQK>oli6cTK>A/i6cTK>A/i6cTK>AP?o02C5c/G>aOnUcZG>YLjUcZG>YLjUcZG>YLjUcZG>YLkocYG>
+ULh4o`0@cXG>QLj5cXG>QLj5cXG>o`@00_l500?o0`02o`@00_mH0000UP03o`0J0?ooofK>I/iVcVK>
+oliVcVK>I/iVcVK>I/h3o`0IcQK>5/hFcQK>ooG>mLkec_G>mLkec_G>m@02o`0TaLk5c/G>aLkocYG>
+ULjEcYG>ULjEcYG>ULjEcYG>ULjEojG>0ol05:G>YOnUcZG>YLjUcZG>YLjUcZGo1P000ol0001X0000
+U002o`800_l05UK>E/iFcUK>E/iFc_o>E/iFcUK>E/h3o`0IcQK>5/hFcQK>5/hFc_o>A/i6cTK>A/i6
+cP03o`0Rc/G>aLk5c/G>aLkocZG>YLjUcZG>YLjUcZG>YLjUcZG>Y@Co01N5cXG>QLkocXG>QLj5cXG>
+QLj5cXG>o`060003o`0006P0001^00?o1002oaX00ol06@3oooo>I/iVcVK>I/iVcVK>I/kocVK>I/h0
+0ol06/hFcQK>5/hFcQK>5/hFcQKoc_G>mLkec_G>0_l08/k5c/G>aLk5c/G>aLk5oiG>ULjEcYG>ULjE
+cYG>ULjEcYD3o`0LULkoYLjUcZG>YOnUcZG>YLjUcZG>YLjUcZG>o`H000?o0000I`0006l000?o0000
+0P001?l00?lG00;o0P02o`0EcUK>E/iFcUK>E/iFcUK>E/iFc_o>00?o01[>5/hFcQK>5/hFcQK>5/hF
+cQK>5_m6cTK>AP?o0275c/G>aLk5c/G>aLk5c/G>aOnUcZG>YLjUcZG>YLjUcZD00ol07hG>QLj5c_n5
+cXG>QLkocXG>QLj5cXG>QLj5cXG>QOl01`000ol0001V0000K`000ol000020004o`00oa@01ol05FK>
+I/iVcVK>I/iVcVK>I/iVcVK>IP02o`0JcQK>5/hFcQK>5/hFcQK>5/hFcQK>5/hFolh3o`0QaLk5c/G>
+aLk5c/G>aLk5c/G>aLkocYG>ULjEcYG>ULjE00?o02:EcYG>ULjEcYGocZG>YLjUojG>YLjUcZG>YLjU
+cZG>YLko1`000ol0001V0000K`000ol0000200?o4P03o`800ol05<iFcUK>E/iFcUK>E/iFcUK>E/iF
+0ol06TKo5/hFcQK>5/hFcQK>5/hFcQK>5/hFcQK>0_l08LG>aLk5c/G>aLk5c/G>aLk5c/G>aLk5ojG>
+YLjUcZG>Y@03o`0VQLj5cXG>QLj5cXG>ohG>QLj5cXGoQLj5cXG>QLj5cXG>QLj5c_l70003o`0006D0
+001_0003o`00008000?o00004002o`800ol05<kocVK>I/iVcVK>I/iVcVK>I/iV0ol06TK>A/i6oaK>
+5/hFcQK>5/hFcQK>5/hFcQK>0ol08<koc/G>aLk5c/G>aLk5c/G>aLk5c/G>aLk5oiG>ULjE0ol0:IG>
+ULjEcYG>ULjEcYG>ULkoYLjUcZG>oljUcZG>YLjUcZG>YLjUcZGo00P000?o0000I00006h00_l500?o
+3003o`800_l05Li[cV_>oliFcUK>E/iFcUK>E/iFcP02o`0JA/i6cTK>A/i6oaK>5/hFcQK>5/hFcQK>
+5/h3o`0Pc_G>mLkoc/G>aLk5c/G>aLk5c/G>aLk5c/G>aLkocZD3o`0/QLj5cXG>QLj5cXG>QLj5cXG>
+QOo>QLj5cXGoQLj5cXG>QLj5cXG>QLj5c_l80003o`0000L00_l400;o1002odl0002200;o0P03o`0D
+Jli[cV_>JlkocVK>I/iVcVK>I/h3o`0IcTK>A/i6cTK>A/kocQK>5/hFcQK>5/hFcP03o`0Oc^G>iLkU
+c^GoaLk5c/G>aLk5c/G>aLk5c/G>aLk5cP04o`0]ULjEcYG>ULjEcYG>ULjEcYG>ULjEcYGocZG>YLko
+cZG>YLjUcZG>YLjUcZG>00?o20000ol000050004o`00o`8000Co003o0P001?l00?m>0000FP03o`<0
+1?lK00?o0P02o`0EJli[cV_>Jli[cV_>oliFcUK>E/iF00;o01W>A/i6cTK>A/i6cTK>A/kocQK>5/hF
+cQK>00?o01o>mLkec_G>mLkec_GoaLk5c/G>aLk5c/G>aLk5c/G>00?o02c>YOn5cXG>QLj5cXG>QLj5
+cXG>QLj5cXG>QLkoQLj5cXGoQLj5cXG>QLj5cPGo00>Uc_l02@000ol000040004o`00o`8000Co003o
+0P001?l00?m>0000F`000ol000030003o`0001T00_l200?o01C>Jli[cV_>Jli[cV_>JomVcVK>IP?o
+01Q6cTK>A/i6cTK>A/i6cTK>A_lFcQK>5/h3o`0Nc^G>iLkUc^G>iLkUc^G>iOo5c/G>aLk5c/G>aLk5
+1?l0:ljUcZG>YOnEcYG>ULjEcYG>ULjEcYG>ULjEcYG>ULkoYLjUc_o>YLjUcZD01?l02JG>YLjUcZG>
+o`080003o`0000D00_l30004o`00o`8000Co003oCP0005/000?o000010000ol0000E00?o0P02o`0D
+cV_>Jli[cV_>Jli[cV_>Jli[oeH3o`0HA/i6cTK>A/i6cTK>A/i6cTK>A/i6oaK>0ol07/kec_G>mLke
+c_G>mLkec_G>mLkoc/G>aLk5c/G>a@?o02^UcZG>YLjUcZG>olj5cXG>QLj5cXG>QLj5cXG>QLj5cXG>
+QOo>QLj5ohG>00Co00g>YLjUcZG>YLjUcZGo00T000?o00000`001?l00?l20004o`00o`8000Co003o
+CP0005/000?o00001@000ol0000B00;o00<0ool00_l056_>Jli[cV_>Jli[cV_>Jli[cV_>0_l064K>
+A/i6cTK>A/i6cTK>A/i6cTK>A/i6cP?o01g>iLkUc^G>iLkUc^G>iLkUc^G>iLkUc_o>aLk5cP04o`0Y
+YLjUcZG>YLjUcZG>YLkocYG>ULjEcYG>ULjEcYG>ULjEcYG>ULkoYLh01Ol04ZG>YLjUcZG>YLjUcZG>
+YLjUo`P00_l500;o1002o`@00_m?0000F`000ol000020004o`00oa400ol200?o01?>Jli[cV_>Jli[
+cV_>Jli[cV_>00?o01O>oli6cTK>A/i6cTK>A/i6cTK>A/i6cP03o`0Mc_o>mLkec_G>mLkec_G>mLke
+c_G>mLkec_GoaLh00ol0:LjUcZG>YLjUcZG>YLjUcZG>YOn5cXG>QLj5cXG>QLj5cXG>QLj5cXG>00Co
+01NUc_o>YLjUcZG>YLjUcZG>YLjUcZG>o`070003o`3o0680001J00;o1@02o`l00ol200?o01?>Jom[
+cV_>Jli[cV_>Jli[cV_>00?o01O>A/i6c_o>A/i6cTK>A/i6cTK>A/i6cP03o`0McQK>5/koc^G>iLkU
+c^G>iLkUc^G>iLkUc^G>iLh00ol09ljUcZG>YLjUcZG>YLjUcZG>YLjUcZGoULjEcYG>ULjEcYG>ULjE
+cP05o`0LYLkoYLjUojG>YLjUcZG>YLjUcZG>YLjUcZG>o`T000?o0000G`0007000_l200?o01?>Jli[
+cV_oJli[cV_>Jli[cV_>00?o01O>A/i6cTK>A/kocTK>A/i6cTK>A/i6cP03o`0McQK>5/hFcQK>olke
+c_G>mLkec_G>mLkec_G>mLh00ol09/kocZG>YLjUcZG>YLjUcZG>YLjUcZG>YLkocXG>QLj5cXG>QLj5
+1?l08LiUcVG>ILiUojG>oljUcZG>YLjUcZG>YLjUcZG>YLjUo`0:0003o`0005h0001]00?o01P0oooo
+cV_>Jli[cV_>Jom[cV_>Jli[cV/2o`0GcTK>A/i6cTK>A/i6c_o>A/i6cTK>A/h00ol07LhFcQK>5/hF
+cQK>5_oUc^G>iLkUc^G>iLkUc^G>00?o02G>eLkEc_o>YLjUcZG>YLjUcZG>YLjUcZG>YLjUc_o>ULjE
+cYG>00Co02G>YLjUcZG>YLjUcZGocZGoYLjUcZG>YLjUcZG>YLjUcZG>YLko00X000?o0000GP0004l0
+0_lJ00;o0P02o`0DcV_>Jli[cV_>Jli[cV_oJli[cV/3o`0FA/i6cTK>A/i6cTK>A/i6c_o>A/i6cP?o
+01g>5/hFcQK>5/hFcQK>5/hFooG>mLkec_G>mLkecP03o`0Sc/G>aLk5c/GoYLjUcZG>YLjUcZG>YLjU
+cZG>YLjUcZGoQLh01Ol0:/iUcVG>ILiUcVG>ILiUcVG>olkocZG>YLjUcZG>YLjUcZG>YLjUcZG>o`X0
+00?o00006P02o`8000?o00001Ol01P3o0?l0o`P000?o00000`04o`800ol300?o0`03o`801?l200Co
+0P0004h000Co003o5P03o`0G0?ooof_>Jli[cV_>Jli[cV_>Jli[of/00ol05TK>A/i6cTK>A/i6cTK>
+A/i6cTK>olh3o`0McQK>5/hFcQK>5/hFcQK>5/hFcQKoiLkUc^G>iLh00ol08/kEc]G>eLkEc]G>eOnU
+cZG>YLjUcZG>YLjUcZG>YLjUcZD4o`0_YLjUcZG>YLjUcZG>YLjUcZG>YLjUc_nUojG>YLjUcZG>YLjU
+cZG>YLjUcZG>YOl02`000ol0000J0004o`3oo`8000Co003o0P001Ol0o`3o00P000?o00000P000ol0
+00030005o`000?l00P001_l00?l0o`<000Co003o1`01o`400@0004h000Co003o5006o`0DJli[cV_>
+Jli[cV_>Jli[cV_>Jlh2o`0GA/i6cTK>A/i6cTK>A/i6cTK>A/i6cTH00_l07LhFcQK>5/hFcQK>5/hF
+cQK>5/hFcQK>olkec_G>00?o02;>aLk5c/G>aLk5c/G>aLkocZG>YLjUcZG>YLjUcZG>YLjU0ol06l7>
+oliUcVG>ILiUcVG>ILiUcVG>ILiUcVG>I@02o`0CcZG>YLjUcZG>YLjUcZG>YLjUcP04o`X000?o0000
+6P001?l0ool20004o`00o`8000Go0?l0o`070003o`3o00<01Ol00`3o00050003o`00008000Go0000
+o`020003o`0000801?l20000C`02oa800ol05`3oooo>Jli[cV_>Jli[cV_>Jli[cV_>00?o01K>oli6
+cTK>A/i6cTK>A/i6cTK>A/i60ol072Ko5/hFcQK>5/hFcQK>5/hFcQK>5/hFcQK>olh3o`0Qc]G>eLkE
+c]G>eLkEc]G>eLkEc_o>YLjUcZG>YLjUcZG>00Co01kEc]G>eLkoYLjUcZG>YLjUcZG>YLjUcZG>YLjU
+cZD2o`0>YLjUcZG>YLjUcZG>YLh5o`04cYG>o`/000?o00001@03o`@00_l400;o1003o`050?l00?l0
+0P002?l00?l0o`3o1`000ol0o`030007o`000?l0o`030004o`00o`@000Go0000o`0200;o0`000ol0
+00030000CP001?l00?l>00?o01P0ooooc_o>Jli[cV_>Jli[cV_>Jli[cV/2o`0FcUK>E/kocTK>A/i6
+cTK>A/i6cTK>AP?o01`[cR_>:olFcQK>5/hFcQK>5/hFcQK>5/hFcQK>0ol08Lk5c/G>aLk5c/G>aLk5
+c/G>aLk5c/GoYLjUcZG>YLjUcP03o`0/c/7>`Lk1c/7>`OmUcVG>ILiUcVG>ILiUcVG>ILiUcVG>ILko
+cZG>YLjUcZD6o`0:`Lk1c/7>`Lk1o`/000?o00001@000ol000020004o`00o`8000Co003o0P001ol0
+ool0o`000_l0103oo`06o`L000?o0?l01003o`<01?l00`3oo`02o`<00ol200;o00@0ool01?l20000
+C`02o`d00_l06@3oooo>Jli[c_o>Jli[cV_>Jli[cV_>Jlh00_l05FK>I/iVcVK>oli6cTK>A/i6cTK>
+AP03o`0L9/hVcRK>9/hVoaK>5/hFcQK>5/hFcQK>5/hFcP?o023>1_oEc]G>eLkEc]G>eLkEc]G>eLkE
+c]G>eOnUcZG>Y@Co02K>eLkEc]G>eLkEc]G>eOo>YLjUcZG>YLjUcZG>YLjUcZG>YLjUcP;o00?>YOl0
+1?l049G>ULjEcYG>ULjEcYG>UOl;0003o`0000D000?o00000P001?l00?l20004o`00o`801?l00`3o
+o`0B00;o00<0ool03`000ol0000D0000F`06o`0EcV_>Jli[cV_>oli[cV_>Jli[cV_>00?o01G>E/iF
+cUK>E/iFc_o>A/i6cTK>A/h00_l072_>:lh[cR_>:lh[cR_o5/hFcQK>5/hFcQK>5/h3o`0Pc/7>`Lk1
+olG>aLk5c/G>aLk5c/G>aLk5c/G>aLkocZD3o`0Y`Lk1c/7>`Lk1c/7>`Lk1c/7>oliUcVG>ILiUcVG>
+ILiUcVG>ILiUcVD01Ol05/k1c/7>`Lk1c/7>`Lk1c/7>`Lk1c_l;0003o`0000@000?o00000P001?l0
+0?l20004o`00o`8000Co003o:@000ol0000D0000?003oaX00_l06@3ooli[cV_>Jli[cV_>JlkocV_>
+Jli[cV/00_l05LiVcVK>I/iVcVK>I/iVc_o>A/i6cP03o`0JcRK>9/hVcRK>9/hVcRK>olhFcQK>5/hF
+cQH4o`0OcPK>1/h6cPK>olkEc]G>eLkEc]G>eLkEc]G>eLkEcP04o`0WeLkEc]G>eLkEc]G>eLkEc]G>
+eLkEc_nUcZG>YLjUcZG>YLjUcZG>00Go01c2c_o>ULjEcYG>ULjEcYG>ULjEcYG>ULjEcYGo2P000ol0
+00040003o`00008000Co003o0P001?l00?l20004o`00od00000m0003o`0001H01_l05V_>Jli[cV_>
+Jli[cV_>JlkocV_>Jlh2o`0DE/iFcUK>E/iFcUK>E/iFcUK>olh3o`0JcR_>:lh[cR_>:lh[cR_>:lh[
+c_o>5/hFcQH3o`0P`Lk1c/7>`Lk1c/7>`Lkoc/G>aLk5c/G>aLk5c/G>aLh3o`0Wc/7o`Lk1c/7>`Lk1
+c/7>`Lk1c/7>`Lk1c/7oILiUcVG>ILiUcVG>00Co00OEc]G>eLkE00;o01S1c/7>`Lk1c/7>`Lk1c/7>
+`Lk1c/7>`Ol;00;o0`02o`D00_l400;o1002od40000k00Co5@05o`0FJli[cV_>Jli[cV_>Jli[cV_>
+JlkocP?o01C>I/iVcVK>I/iVcVK>I/iVcVK>IP;o01[>9/hVcRK>9/hVcRK>9/hVcRK>9/hVc_o>5P?o
+0206cPK>1/h6cPK>1/h6cPK>1/koc]G>eLkEc]G>eLkEcP?o02K>1/h6cPKoeLkEc]G>eLkEc]G>eLkE
+c]G>eLkEc]GocZG>YLjUcPCo00_>`/k2c/;>`/k2cP02o`0IULjEcYG>ULjEcYG>ULjEcYG>ULjEcYG>
+o`090003o`3o05T0000k0003o`3o01<01Ol05f_oJli[cV_>Jli[cV_>Jli[cV_>Jli[00;o01C>E/iF
+cUK>E/iFcUK>E/iFcUK>EP?o01QVob_>:lh[cR_>:lh[cR_>:lh[cR_>:lh4o`0O`Lk1c/7>`Lk1c/7>
+`Lk1c/7>`Lk1olG>aLk5c/G>a@04o`0Tc/7>`Lk1c/7>`Oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>oliU
+1Ol0:]G>eLkEc]G>eLkEc]G>eOoEolk1c/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>o`/000?o0000E`0003/0
+00?o0?l04@02o`0I0?ooc_o>Jli[cV_>Jli[cV_>Jli[cV_>J`03o`0CJlkocVK>I/iVcVK>I/iVcVK>
+IP03o`0HE/iFcUKo9/hVcRK>9/hVcRK>9/hVcRK>0ol08<i6o`K>1/h6cPK>1/h6cPK>1/h6cPK>1/h6
+omG>eLkE0ol08`K>1/h6cPK>1/h6cPK>olkEc]G>eLkEc]G>eLkEc]G>eLkE00Go02c2c/;>`/k2c/;>
+`/k2c/;>`/k2c_o>`_nEcYG>ULjEcYG>ULjEcYG>ULjEcPCo2`000ol0001F0000?002o`h01_l05F_>
+JlkocV_>Jli[cV_>Jli[cV_>J`03o`0CJli[cV_>oliFcUK>E/iFcUK>EP03o`0HI/iVcVK>I/iVob_>
+:lh[cR_>:lh[cR_>0ol08<h[cR_>:oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>olk50ol08L7>`Lk1c/7>
+`Lk1c/7>`Lk1c_o>`Lk1c/7>`Lk1c/7>`@05o`0/c/7>omG>eLkEc]G>eLkEc]G>eLkEc]G>eOoEc_o1
+c/7>`Lk1c/7>`Lk1c/45o`04cW7>o``000?o0000E@0004T00ol0603oof_>Jli[cV_>oli[cV_>Jli[
+cV_>J`?o01A[cV_>Jli[cV_>oliVcVK>I/iVcP;o01QFcUK>E/iFcUK>E/iFobK>9/hVcRK>9/h3o`0O
+cTK>A/i6cTK>A_l6cPK>1/h6cPK>1/h6cPK>1/h6cP04o`0O1/h6cPK>1/h6cPK>1/h6cPK>1/h6omG>
+eLkEc]G>e@05o`0MmLkec_G>mLkeol;>`/k2c/;>`/k2c/;>`/k2c/800_l03<k2c_o>ULjEcYG>U@Ko
+00ZEcYG>ULjEcYGo2`000ol0001E0000A`02o`800_l05Li[cV_>Jli[cV_>oli[cV_>Jli[cP02o`0D
+Jli[cV_>Jli[cV_>JlkocUK>E/h3o`0GcVK>I/iVcVK>I/iVcVK>I_l[cR_>:lh00ol07/h[cR_>:lh[
+cR_>:lkoc/7>`Lk1c/7>`Lk1c/7>`@Co01k19_o1c/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>`Oo1c/45o`0O
+c/7>`Lk1c/7>`Lk1c/7oc]G>eLkEc]G>eLkEc]G>e@03o`09eOoEc]Goc/7>00Go011acW7>LLiacW7>
+LLiacW7o30000ol0001D0000A003o`800_l056_>Jli[cV_>Jli[cV_>oli[cV_>0ol04li[cV_>Jli[
+cV_>Jli[cV_>olh00ol05liFcUK>E/iFcUK>E/iFcUK>E/iFobK>00?o01g>A/i6cTK>A/i6cTK>A/i6
+c_o>1/h6cPK>1/h6cP04o`0M9/hVcRK>9_l6cPK>1/h6cPK>1/h6cPK>1/h6cPH01Ol08OG>mLkec_G>
+mLkec_G>mLkec_G>olk2c/;>`/k2c/;>`P03o`07`/k2c/;o`P05o`0FcYG>ULjEcYG>ULjEcYG>ULjE
+cYG>o``000?o0000D`0004<00_l05`3oooo>Jli[cV_>Jli[cV_>Jli[c_o>00?o01C>Jli[cV_>Jli[
+cV_>Jli[cV_>J`;o01O>I/iVcVK>I/iVcVK>I/iVcVK>I/iVcP03o`0LcR_>:lh[cR_>:lh[cR_>:lh[
+cR_o`Lk1c/7>`@Co01g19/4V`BK19/4V`BKo`Lk1c/7>`Lk1c/7>`Lk1cP04o`0S9/7o`Lk1c/7>`Lk1
+c/7>`Lk1c/7>`Lk1c/7oc]G>eLkEc]D00ol01MG>eLkE00Go01/[`Oo>LLiacW7>LLiacW7>LLiacW7>
+LLiac_l030000ol0000500?o0`04o`<00_l400;o>@0004<00ol05<i[cV_>Jli[cV_>Jli[cV_>Jli[
+0ol04f_>Jli[cV_>Jli[cV_>Jli[cV/00ol05VKoE/iFcUK>E/iFcUK>E/iFcUK>E/h3o`0Kc_o>A/i6
+cTK>A/i6cTK>A/i6cTK>A/i6o`K>00Co01dVcRK>9/hVcRK>9/hVcRK>9_l6cPK>1/h6cPK>1P04o`0T
+cRK>9/hVc_o>mLkec_G>mLkec_G>mLkec_G>mLkeol;>`/k20ol01<;>`/h4o`0Q9/hVcRKo9/koULjE
+cYG>ULjEcYG>ULjEcYG>ULjEcYGo00`000?o00001@000ol000030003o`00008000Co003o0P001?l0
+0?lh0000@`005?m[cV_>Jli[cV_>Jli[cV_>Jli[0ol056_>Jom[cV_>Jli[cV_>Jli[cV_>0_l05Pk>
+3/h>ofK>I/iVcVK>I/iVcVK>I/h3o`0JcR_>:lkocR_>:lh[cR_>:lh[cR_>:lh[cR/4o`0M`BK19/4V
+`BK19/4V`BK19/4V`BK1olk1c/7>`Lh01?l09BK19/4V`BK19/4V`Oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1
+c/7>omD00ol00mG>e@04o`0U`B_1:l4[`B_1ol4[og7>LLiacW7>LLiacW7>LLiacW7>LLiao`0=0003
+o`0000@000?o000010001Ol0003o008000Co003o0P000ol0000f0000>`02o`H00_l046_>Jli[cV_>
+Jli[cV_>Jlh2o`0DJli[cV_>Jom[cV_>Jli[cV_>Jlh3o`0EcVK>I/iVcVKoE/iFcUK>E/iFcUK>00?o
+01W>:lh[cR_>:lkocTK>A/i6cTK>A/i6cTK>00Co01d[cR_o9/hVcRK>9/hVcRK>9/hVcRK>9/hVc_o>
+1P04o`0WcRK>9/hVcRK>9/hVcRK>9/koc_G>mLkec_G>mLkec_G>mLkec_G>00;o00?2ool00ol0:RK>
+9/hVcRK>9/hVcRK>olhVoljEcYG>ULjEcYG>ULjEcYG>ULjEcYG>o``000?o000010000ol000050004
+o`00o`8000Co003o0P000ol0000f0000>P001?l00?l400;o00h0of_>Jli[cV_>Jli[cP?o01?>Jli[
+cV_>Jli[of_>Jli[cV_>00?o01K>3/h>cPk>3/h>cPkoI/iVcVK>I/iV0_l06<h[cR_>:lh[cR_>:lko
+cR_>:lh[cR_>:`Co01g1E/5F`EK1E_lV`BK19/4V`BK19/4V`BK19/4V`@04o`0X9/4V`BK19/4V`BK1
+9/4V`BK19/4Volk1c/7>`Lk1c/7>`Lk1c/7>`@Ko02l[`B_1:l4[`B_1:l4[`B_1:l4[`Oo1oliacW7>
+LLiacW7>LLiacW7>LLiacW7>o`0=00;o10000ol000020004o`00o`8000Co003o0P001?l00?lh0000
+>P001?l00?l4000=o`000?m[cV_>Jli[cP03o`0DcV_>Jli[cV_>Jli[cV_oJli[cV/2o`0FcVK>I/iV
+cVK>I/iVcVK>I_mFcUK>EP?o01L[cR_>:lh[cR_>:lh[cR_oA/i6cTK>AP03o`0L:lh[cR_>:lh[cR_>
+:olVcRK>9/hVcRK>9/hVcPGo02K>5_lVcRK>9/hVcRK>9/hVcRK>9/hVcRK>9_oec_G>mLkec_G>m@Oo
+037>ULko9/hVcRK>9/hVcRK>9/hVcRK>9/hVobK>oiG>ULjEcYG>ULjEcYG>ULjEcYG>00Co2`000ol0
+o`0300;o1@02o`@00_l400;o>@0003X000Co003o10000ol000020006of_>Jli[0_l05<i[cV_>Jli[
+cV_>Jli[cV_>Jom[0ol05@k>3/h>cPk>3/h>cPk>3/h>cPkoIP03o`0F:lh[cR_>:lh[cR_>:lh[cR_>
+:ol[cPCo01YF`EK1E/5F`EK1E/5F`EK1E_lV`BK19/4V`@Go02C1c/7>`Lk1c_lV`BK19/4V`BK19/4V
+`BK19/4V`BK19_o>`Lh:o`0``@K11/46`@Ko:l4[`B_1:l4[`B_1:l4[`B_1:l4[ob_oLLiacW7>LLia
+cW7>LLia1Ol01<k1c_l=0003o`0004l0000j0004o`00o`@000?o00000`000om[o`02o`0DJli[cV_>
+Jli[cV_>Jli[cV_>Jlh2o`0FI/iVcVK>I/iVcVK>I/iVcVK>I/iVcP;o01H[cR_>:lh[cR_>:lh[cR_>
+:lh[cR_>0ol06Lh[cR_>:lh[cR_>:lh[cR_>:lh[cR_o9/h01Ol09<hFcQK>5/hFcQK>5/hFobK>9/hV
+cRK>9/hVcRK>9/hVcRK>9PGo00C>ULjE0ol0;IG>ULjEcYG>ULjEc_lVcRK>9/hVcRK>9/hVcRK>9/hV
+cRKo9_o>ULjEcYG>U@06o`0:A/i6cTK>A/i6o`d000?o0000CP0003/00_l500;o1@02o`0CcV_>Jli[
+cV_>Jli[cV_>Jli[cP03o`0EcV_o3/h>cPk>3/h>cPk>3/h>cPk>00?o01G1I_l[cR_>:lh[cR_>:lh[
+cR_>:lh00ol06<7o`EK1E/5F`EK1E/5F`EK1E/5F`EK1EPCo02C1c/7>`Lk1c/7>`Lk1c/7>`Lk1c_lV
+`BK19/4V`BK19/4V`BH5o`065/7o`@K10ol09/46`@K11/46`@K11/46`@Ko:l4[`B_1:l4[`B_1:l4[
+`B_1:l4[0_l00liacP05o`0@`Lk1c/7>`Lk1c/7>`Lk1o`h000?o0000C@00048000?o00001P004Oo>
+Jli[cV_>Jli[cV_>Jli[00;o01G>Jli[cV_oI/iVcVK>I/iVcVK>I/h00ol05LiFcUK>E_l[cR_>:lh[
+cR_>:lh[cP03o`0HcVK>I/kocR_>:lh[cR_>:lh[cR_>:lh[0ol08fK>olhFcQK>5/hFcQK>5/hFcQK>
+5/hFcQKo9/hVcRK>9/hV00Go00P6cPK>1/h6cP?o02JEcYG>ULjEcYG>ULjEcYG>ULjEolhVcRK>9/hV
+cRK>9/hVcRK>9PSo01K>A/i6cTK>A/i6cTK>A/i6cTK>A/ko3@000ol0001=0000@P000ol00007000=
+oli[cV_>Jli[cV_>J`03o`0DJli[cV_>Jli[o`k>3/h>cPk>3/h3o`0E`FK1I/5V`FK1I_l[cR_>:lh[
+cR_>00?o01S1I/5V`FK1I/7o`EK1E/5F`EK1E/5F`EH3o`0QI/5V`FK1ol7>`Lk1c/7>`Lk1c/7>`Lk1
+c/7>`Lko9/4V00Go00/F`AK15/4F`AK15P03o`0M1/46`@K11/46`@K11/46`@K11/46`Oo1:l4[`B/0
+2ol01<k1c/42o`0Hc/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>`Lko3P000ol0001<0000@@02o`X000WocV_>
+Jli[cV/00ol056_>Jli[cV_>Jli[cV_oI/iVcVK>0ol05LiFcUK>E/iFcUK>E/iFob_>:lh[cP03o`0H
+cVK>I/iVcVK>I/iVc_o>:lh[cR_>:lh[0ol07fK>I/iVcVK>I/kocQK>5/hFcQK>5/hFcQK>5/hFcQH0
+1Ol03@K>1/h6cPK>1/h6cPH00ol060K>1_o>ULjEcYG>ULjEcYG>ULjEcYG>U@So012UcZG>YLjUcZG>
+YLjUcZG>0_l064K>A/i6cTK>A/i6cTK>A/i6cTK>A/i6o`h000?o00001@03o`@00ol300;o1002oc40
+00110003o`0000X000KocV_>Jlh2o`0DJli[cV_>Jli[cV_>Jli[cV_o3/h3o`0E`FK1I/5V`FK1I/5V
+`FK1I/5Vob_>00?o01S1I/5V`FK1I/5V`FK1I/5V`Oo1E/5F`EH3o`0MI/5V`FK1I/5V`FK1I/7o`Lk1
+c/7>`Lk1c/7>`Lh01Ol03lk1ol4F`AK15/4F`AK15P03o`0G5/4F`AK15_l6`@K11/46`@K11/46`@H0
+1?l06L5Volk1c/7>`Lk1c/7>`Lk1c/7>`Lk1c/400_l05lk1c/7>`Lk1c/7>`Lk1c/7>`Lk1c/7o00h0
+00?o00001P000ol000040005o`000?l00P001?l00?l20003o`0002h000110003o`0000/000?oc_l0
+0_l04li[cV_>Jli[cV_>Jli[cV_>Jlh00ol05LiFcUK>E/iFcUK>E/iFcUK>E/iFcP03o`0HcVK>I/iV
+cVK>I/iVcVK>I/iVcVK>olh[0ol06fK>I/iVcVK>I/iVcVK>I/iVoaK>5/hFcQK>5P05o`0A5/hFcQK>
+5/kocPK>1/h6cPH00ol05PK>1/h6cPK>1/koULjEcYG>ULjEcYD4o`0MI/iVcVK>I_nUcZG>YLjUcZG>
+YLjUcZG>YLjUcZD00_l04/i6cTK>A/i6cTK>A/i6cTK>APKo3P000ol000050003o`0000801?l20004
+o`00o`8000Co003o<00004400_l=00;o019[cV_>Jli[cV_>Jli[cV_>Jlh3o`0EcV_oI/5V`FK1I/5V
+`FK1I/5V`FK100?o01O1I_mV`FK1I/5V`FK1I/5V`FK1I/5V`@04o`0II/5V`FK1I/5V`FK1I/5V`FK1
+I/5Volk1cP05o`0Cc/7>`Lk1c/7>`Lk1c/7o`AK15P03o`0E5/4F`AK15/4F`AK15/7o`@K11/4600Co
+02;1I/5V`FK1I/5V`FKoc/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>0_l01/7>`Lk1cP_o00In`Gk1O_l?0003
+o`0000@000?o00000P000ol0o`030004o`00o`8000Co003o<000044000?o00003P003om[cV_>Jli[
+cV_>Jli[cP03o`0EcV_>Jli[oeK>E/iFcUK>E/iFcUK>00?o01O>I/iVcVKoI/iVcVK>I/iVcVK>I/iV
+cP03o`0HcTKoI/iVcVK>I/iVcVK>I/iVcVK>I/iV1Ol051K>5/hFcQK>5/hFcQK>5/hFcQK>1?l050K>
+1/h6cPK>1/h6cPK>1/h6oljE1?l09FK>I/iVcVK>I/iVcVK>I/kocZG>YLjUcZG>YLjUcZG>YLjUcZD0
+2Ol04/jUcZG>YLjUcZG>YLjUcZG>o`h000?o000010000ol000020003o`3o00<000Co003o0P001?l0
+0?l`0000@@000ol0000?000;of_>Jli[cV_>Jlh00ol05Li[cV_>Jli[cV_oI/5V`FK1I/5V`@03o`0F
+`FK1I/5V`FK1I_mV`FK1I/5V`FK1IPCo01O1A/56`DKoI/5V`FK1I/5V`FK1I/5V`@04o`0H9/7o`Lk1
+c/7>`Lk1c/7>`Lk1c/7>`Lk10_l041K15/4F`AK15/4F`AK15/47o`0T`FK1I/5V`FK1I/5V`FK1I/5V
+`FK1ol7>`Lk1c/7>`Lk1c/7>1Ol07<k1oomn`Gk1O/5n`Gk1O/5n`Gk1O/5n`Gk1O_l>0003o`000080
+0_l500;o1002o`@00_la0000@003oa4000OoJli[cV_>00?o01G>Jli[cV_>Jli[cV_>JomFcUK>E/h0
+0ol05LiVcVK>I/iVcVK>I/iVofK>I/iVcP04o`0GA/i6cTK>A/i6cTKoI/iVcVK>I/iVcVH01?l06LhV
+cRK>9/kocQK>5/hFcQK>5/hFcQK>5/h00ol02<hFo`K>1/h62_l09/k1c/7>oliVcVK>I/iVcVK>I/iV
+cVK>I/iVcVKoYLjUcZG>YLjU1Ol02>G>iLkUc^G>0_l05ljUcZG>YLjUcZG>YLjUcZG>YLjUcZGo00d0
+00?o0?l0B@00040000?o00004P000om[cP03o`0EcV_>Jli[cV_>Jli[cV_>Jli[ofK100?o01G1I/5V
+`FK1I/5V`FK1I/5V`FKoI/400ol06<56`DK1A/56`DK1A/56`DKoI/5V`FK1IP?o01XV`BK19/4V`BK1
+9/7o`Lk1c/7>`Lk1c/7>`@?o00?1c/402?l0:l7e`OG1mL7e`OG1mL7e`OGo`FK1I/5V`FK1I/5V`FK1
+I/5V`FK1I_o>`Lh01Ol09lk1c/7>`Lk1c/7>`Lk1ol5n`Gk1O/5n`Gk1O/5n`Gk1O/5n`Gk1o`0>0003
+o`0004L0000b00?o1002o`D000?o00004`02o`0EcV_>Jli[cV_>Jli[cV_>Jli[cV_>00?o01C>I/iV
+cVK>I/iVcVK>I/iVcVK>IPCo01O>A/i6cTK>A/i6cTK>A/i6cTK>A_mVcP04o`0J9/hVcRK>9/hVcRK>
+9/hVc_o>5/hFcQK>5/h9o`0]cRK>olk1c/7>`Lk1c/7>`Lk1c/7>`Lk1c_o>I/iVcVK>I/iVcVK>I/iV
+cVK>00Ko02cUc^G>iLkUc^G>iLkUc^G>iLkUc_nUcZG>YLjUcZG>YLjUcZG>YLjUcZG>o`l000?o0000
+AP0003D000Co003o0P000ol000020003o`0001@001?oJli[cV_>Jli[cV_>Jli[cV_>00?o01C1Jl7o
+`FK1I/5V`FK1I/5V`FK1IP?o01MV`Oo1A/56`DK1A/56`DK1A/56`DK1AP04o`0I`BK19/4V`BK19/4V
+`BK19/4V`BK1ol7>`@07o`0]`Lk1c/7>`Lk1c/7omL7e`OG1mL7e`OG1mL7e`OG1mL7oI/5V`FK1I/5V
+`FK100Oo01[1c/7o`Lk1c/7>`Lk1c/7>`Lk1c/7>`Lk1cP;o01O1O/5n`Gk1O/5n`Gk1O/5n`Gk1O/5n
+o`0?0003o`0004D0000e0004o`00o`8000?o00000P02oaH000ooJli[cV_>Jli[cV_>Jlh00ol04li[
+cV_>JlkocVK>I/iVcVK>I/h01?l05fK>I/iVc_o>A/i6cTK>A/i6cTK>A/i600?o01Q6cTKo9/hVcRK>
+9/hVcRK>9/hVcRK>9/h7o`0[cRK>9/hVcRK>9/hVcRK>9/koc/7>`Lk1c/7>`Lk1c/7>`Lk1c/7oI/iV
+cP07o`0fcQK>5/hFcQK>5/koc^G>iLkUc^G>iLkUc^G>iLkUc^G>iOo>YLjUcZG>YLjUcZG>YLjUcZG>
+1Ol>0003o`0004D0000b00?o0`001?l00?l40003o`0001H000_oJli[cV_>Jli[cP03o`0B`F_1Jl5[
+`F_1Jl7o`FK1I/5V1?l05l5V`FK1I/5V`FK1ol56`DK1A/56`DK100Co01QF`EK1E/5FobK19/4V`BK1
+9/4V`BK19/43o`0[`B_ool7>`Lk1c/7>`Lk1c/7>`Lk1c/7>`Ooe`OG1mL7e`OG1mL7e`OG1m@07o`0f
+`Lk1c/7>`Lk1c/7>`Lk1c/7>`Oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>ogk1O/5n`Gk1O/5n1ol01Lk1
+c/7o00l000?o0000A000038000?o00000`001?l00?l40003o`0001L000OoJli[cV_>00?o01;>Jli[
+cV_>Jli[cV_>JlkocVH3o`0GI/iVcVK>I/iVcVK>I/iVc_o>A/i6cTH01?l06<i6cTK>A/i6cTK>A_lV
+cRK>9/hVcRK>9PCo00?>A_l00_l08TKo9/hVcRK>9/hVcRK>9/hVcRK>9/hVol7>`Lk1c/7>`Lh7o`0a
+c/7>olhFcQK>5/hFcQK>5/hFcQK>5/hFcQK>olkUc^G>iLkUc^G>iLkUc^G>iLkUcP02o`03cZG>00Oo
+00gec_G>mLkec_G>mLko00l000?o00001003o`@00_l400;o1002obX0000b00Co0`02o`@00_lJ0003
+of_>00?o01;1Jl5[`F_1Jl5[`F_1Jl5[`F/3o`0GI/5V`FK1I/5V`FK1I/5V`FK1I/7o`DH00ol065K1
+E/5F`EK1E/5F`EK1E/5FobK19/4V`@Co00<[`B/00ol07b_1:l4[olk1c/7>`Lk1c/7>`Lk1c/7>`Lk1
+c_o1mL401_l0=0K>1/h6cPK>1/h6ol7>`Lk1c/7>`Lk1c/7>`Lk1c/7>`Lkoc/7>`Lk1c/7>`Lk1c/7>
+`Lh9o`0Dc/7>`Lk1c/7>`Lk1c/7>`Lk1c_l?0003o`0000D000?o00000P001?l00?l20004o`00o`80
+00Co003o:@0003l000?o00006P02o`0BcV_>Jli[cV_>Jli[cV_>Jli[0ol05V_oI/iVcVK>I/iVcVK>
+I/iVcVK>I/h4o`0HA/i6cTK>A/i6cTK>A/i6cTK>A/i6obK>0ol01<i6cTH3o`0LA/i6cTK>A/i6obK>
+9/hVcRK>9/hVcRK>9/hVcPKo02o1c/7>`Lk1c/7>`Lk1c/7>`LkocQK>5/hFcQK>5/hFcQK>5/hFcQK>
+5_oUc^G>i@0;o`05YLjUcZD00_l05lkec_G>mLkec_G>mLkec_G>mLkec_Go00l000?o000010000ol0
+00020004o`00o`8000Co003o0P001?l00?lY0000?`000ol0000K000Aof_1Jl5[`F_1Jl5[`F_1Jl40
+0_l05V_1Jl5[ofK1I/5V`FK1I/5V`FK1I/43o`0H`EK1ol5F`EK1E/5F`EK1E/5F`EK1E/5F1?l01<4[
+`B/3o`0H:l4[`B_1:l4[`B_1:oo>`Lk1c/7>`Lk11ol0;BK>9_l6cPK>1/h6cPK>1/h6cPK>1/h6cPKo
+`Lk1c/7>`Lk1c/7>`Lk1c/7>`@08o`0Ac/7>`Lk1c/7>`Lk1c/7>`Lh00_l05/7>`Lk1c/7>`Lk1c/7>
+`Lk1c/7>`Ol@0003o`0000<000?o00000P03o`<000Co003o0P001?l00?lY0000?`000ol0000L000=
+of_>Jli[cV_>Jli[cP03o`0DcV_>Jli[cV_oI/iVcVK>I/iVcVH4o`0HcTK>A/i6c_o>A/i6cTK>A/i6
+cTK>A/i60ol01FK>oli600?o01E6cTK>A/i6cTK>A/i6cTK>A_lVcRH01_l0;Lk1c/7>`Lk1c/7>olk1
+c/7>`Lk1c/7>`Lk1c/7>`Lk1oaK>5/hFcQK>5/hFcP07o`0Ic[7>oljUcZG>YLjUcZG>YLjUcZG>YLjU
+cP02o`0FmLkec_G>mLkec_G>mLkec_G>mLkeoa000_l40003o`00008000?o00000`001?l00?l20004
+o`00obT0000o00;o7P002Om[`F_1Jl5[`@03o`0C`F_1Jl5[`F_1Jl5[ofK1I/5V`@04o`0HE/5F`EK1
+E/5F`EK1ol5F`EK1E/5F`EK11?l01UK1E/5F`@;o01<[`B_1:l4[`B_1:l4[`B_1:l4[00Go02c>9/hV
+cRK>9/hVcRK>9/hVcRKo1/h6cPK>1/h6cPK>1/h6cPK>1/koc/7>`@Oo2lh05_o1c/7>`Lk1c/7>`Lk1
+c/7>`Lk1c/42o`0Fc/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>o`h000?o0?l00`02o`D00ol300;o1002obX0
+000o0003o`0001h000KoJli[cV/2o`0CcV_>Jli[cV_>Jli[cV_>JomVcP03o`0HcTK>A/i6cTK>A/i6
+cTK>A/kocTK>A/i61?l01liVcVK>I/h00ol04<kocTK>A/i6cTK>A/i6cTH5o`0XA/koc/7>`Lk1c/7>
+`Lk1c/7>`Lk1c/7>olk1c/7>`Lk1c/7>`Lk1cPWo02W>/Ljac[7>/Ljac[7>/Ljac[7oYLjUcZG>YLjU
+cZG>YLjUcZG>YLjUcP02o`0EmLkec_G>mLkec_G>mLkec_G>mLko014000?o0000?`0003l000?o0000
+7`000om[o`02o`0BJl5[`F_1Jl5[`F_1Jl5[`F_10ol06<5F`EK1E/5F`EK1E/5F`EK1E/5F`Oo1EP?o
+00QF`EK1E/5F`@?o00k1E/5F`Oo1:l4[`B_1:`Go02@[`B_1:l4[`OlVcRK>9/hVcRK>9/hVcRK>9/hV
+cRKo1/h6cPH9o`G>00?oc/h05<h08_o>`Lk1c/7>`Lk1c/7>`Lk1c/7>`Lkoc_o>`Lk1c/7>`Lh<oa00
+00?o0000?`0003h00_lR00;o017>Jli[cV_>Jli[cV_>Jli[cP03o`0GcUKoA/i6cTK>A/i6cTK>A/i6
+cTK>A/h01?l026K>I/iVcVK>0ol03<iVcVK>I/iVc_o>APGo0256cTK>A/i6cTK>A/i6c_o>`Lk1c/7>
+`Lk1c/7>`Lk1c/402?l0=ljac[7>/Ljac[7>/Ljac_o>/Ljac[7>/Ljac[7>/Ljac[7>/LjaojG>YLjU
+cZG>YLjUcZG>YLh04?l03:G>YLjUcZG>YLjUoa4000?o0000?P0003h000?o00008`003_o1Jl5[`F_1
+Jl5[`F_10ol05liVcVK>I_mF`EK1E/5F`EK1E/5F`EK100?o00W1I/7o`EK1E/400ol02l5F`EK1E/5F
+`EK100Co01l[`B_1:l4[`B_1:l4[`B_1:l4[`OlVcRK>9/hVcRK>00Oo00C>5/ko5<h00oo>cP0CcP06
+ol7>`Lk12ol07L46`@K1ol7o`Lk1c/7>`Lk1c/7>`Lk1c/7>`Lko010000?o0000?P0003h000?o0000
+90002_o>Jli[cV_>Jlh3o`0FcUK>E/iFcUK>E_m6cTK>A/i6cTK>APCo00W>I/iVcVK>olh00ol02LiV
+cVK>I/iVcP05o`0McQKoA/i6cTK>A/i6cTK>A/i6cTK>A/i6c_o>`Lh01_l0<l7>`Lk1c/7>`Lk1ok7>
+/Ljac[7>/Ljac[7>/Ljac[7>oljac[7>/Ljac[7>/Ljac[7>/@08o`0XYLjUcZG>YLjUcZG>YLjUcZGo
+c_o>YLjUcZG>YLjUcZG>YLjUcZG>oa4000?o0000?@0003h00_lV0006ol5[`F_10ol05LiVcVK>I/iV
+cVK>I/iVoeK1E/5F`@04o`0:I/5V`FK1I/5V`@?o00S1E/5F`EK1EPCo01g1A/56`DK1A_l[`B_1:l4[
+`B_1:l4[`B_1:l4[`@05o`0B5/hFcQK>5/hFcQK>5/hFcQKo5<h00oo>cP09cPOo037>5/ko1/46`@K1
+1/46`@K11/46`@K11/46`Oo1ol7>`Lk1c/7>`Lk1c/7>`Lk1c/7o014000?o00001003o`@00_l400;o
+1002ob<0000n0003o`0002H000?oc_l00_l05LiFcUK>E/iFcUK>E/iFcUK>E_m6cP03o`0<cVK>I/iV
+cVK>I/iV0_l01/iVc_o>IPGo01`FcQK>5/hFcQK>5/hFodK>A/i6cTK>A/i6cTK>1Ol0<<hVol7>`Lk1
+c/7>`Lk1c/7>`Lk1c/7>oljac[7>/Ljac[7>/Ljac[7>/Ljaok7>/@Oo03S1c/7>`Lk1c/7>`Oo>YLjU
+cZG>YLjUcZG>YLjUcZG>YLkoYOnUcZG>YLjUcZG>YLjUcZG>YLjUoa4000?o00001@000ol000020004
+o`00o`8000Co003o0P001?l00?lR0000:@03o`@00_l400;o1P000ol0000W000FoliVcVK>I/iVcVK>
+I/iVcVK>I/iVcP?o00c1I/5V`FK1I/5V`FH3o`04I/5V`@Co01a6`DK1A/56`DK1A/56`DK1A/56ob_1
+:l4[`B_11Ol07/4V`BK19/4VolhFcQK>5/hFcQK>5/hFcQK>5/hFo`o>2?l0@<hFcQK>5/hFcQK>5/hF
+cQK>5_o11/46`@K11/46`@K11/46`@K11/46olkoc/7>`Lk1c/7>`Lk1c/7>`Lk1c_lA0003o`0000@0
+00?o00000P001?l00?l20004o`00o`8000Co003o8P0002X000?o00000P001?l00?l20004o`00o`@0
+00?o0000:@004_o>E/iFcUK>E/iFcUK>E/iFcP?o00c>JomVcVK>I/iVcVH3o`04I/iVcP?o01_>I_lF
+cQK>5/hFcQK>5/hFcQK>5/hFcQKoA/h01Ol0:<hVcRK>9/hVcRK>9/hVol7>`Lk1c/7>`Lk1c/7>`Lk1
+c/7o/Ljac[4:o`18c[7>/Lkoc/7>`Lk1c/7>`Lk1c/7>`Lk1c/7>ojG>YLjUcZG>YLjUcZG>YLjUcZG>
+YOo>YOnUcZG>YLjUcZG>YLjUcZG>YLko4P000ol000030003o`0000<00_l30004o`00o`8000Co003o
+8P0002X000?o00000P001?l00?l20004o`00o`@00_l[000>oliVcVK>I/iVcVK>I/h3o`0<`FK1I/5V
+ofK1I/5V0ol00fK1IP04o`0J`FK1I/5VodK1A/56`DK1A/56`DK1A/56`DH4o`0T`BK19/4V`BK19/4V
+`BK19/4V`BKocQK>5/hFcQK>5/hFcQK>2Ol@cP0hoaK>5/hFcQK>5/hFcQK>5/hFcQK>5_o11/46`@K1
+1/46`@K11/46`@K11/7o`Oo1c/7>`Lk1c/4;oa400_l40003o`00008000Co003o0P001?l00?l20004
+o`00ob800002o`800_l00`3oo`03o`040?oo00;o0P03o`801Ol01P3o0?l0o`801Ol40004o`00o`80
+00Co003o10000ol0000[000:oliFcUK>E/iFcP?o00c>Jli[cV_>Jli[ofH3o`03I/ko00?o01]VcVK>
+I/iVcVK>I_lFcQK>5/hFcQK>5/hFcQH00ol07hK>olhVcRK>9/hVcRK>9/hVcRK>9/hVcRKo`Lk1c/40
+2Ol0@l7>`Lkoc[7>/Ljac[7>/Ljac[7>/Ljac[7>olk1c/7>`Lk1c/7>`Lk1c/7>`Lk1oljUcZG>YLjU
+cZG>YLjUcZG>YLh03_l02jG1YL6U`JG1YL7o010000?o0?l00`02o`D00_l400;o1002ob<000000`3o
+0002o`8000Co003o0P001?l00?l30004o`00o`<000_o0000o`3o0?l0o`040003o`00008000Co003o
+0P001?l00?l40003o`0002`000KocVK>I/h3o`0<`FK1I/5V`FK1I/5V0ol00fK1o`02o`0K`FK1I/5V
+`FK1I/5V`FK1I_m6`DK1A/56`DK100Co01][`F_1Jl7o`BK19/4V`BK19/4V`BK19/4V`BH01ol03lh6
+cPK>1/h6cPK>1/h6o`0EcP0QoaK>5/hFcQK>5/hFcQK>5/hFcQK>o`K11/46`@K11/4600Oo01XV`BKo
+S/kocXk>S/j>cXk>S/j>cXk>S/j>oa8000?o0000>00000040?ooo`<000Co003o0P001?l00?l30003
+o`0000@000[o0000o`3o0?l01_l500;o1002o`D000?o0000;@000oo>o`02o`0=cV_>Jli[cV_>Jli[
+cP02o`03Jlko00;o01[>I/iVcVK>I/iVcVK>I/iVcVK>olhFcQK>5PCo01[>Q/j6cXK>Q/j6c_o>9/hV
+cRK>9/hVcRK>9PGo04DVc_o>`Lk1c/7>`Lk1c/7>`Lk1c/7>oljac[7>/Ljac[7>/Ljac[7>/Ljaol7>
+`Lk1c/7>`Lk1c/7>`Lk1c/7>ojG>YLh01ol08MG>eLkEc]G>eLkEol6UojG1YL6U`JG1YL6U`JG1YL6U
+o`0B0003o`0003P000001@3o003o008000Co003o0P001?l00?l30003o`0000@000_o0000o`3o0?l0
+o`030003o`0001000ol_000>ol5V`FK1I/5V`FK1I/43o`0N`Ooool6F`Oo1I/5V`FK1I/5V`FK1I/5V
+`FK1ol560ol06F_1Jl5[`F_1Jl5[`F_1Jl7o`BK19/4V`BH01Ol07BK19/4V`BK1o`K>1/h6cPK>1/h6
+cPK>1/h6cPKo01C>00_ocQK>5/hFcQK>5P0>o`0Y9/4V`BK19/4V`BK19/4V`BK1olj>ohk>S/j>cXk>
+S/j>cXk>S/j>c_l04P000ol0000g000000H0o`00o`02o`040?oo00Go0P04o`<00_l200Ko0P03oa@0
+00?o0000;`002_o>Jli[cV_>Jlh3o`0Lc_ooolj6cXK>Q/kocVK>I/iVcVK>I/iVcVK>IPGo01N6cXK>
+Q/j6cXK>Q/j6cXK>Q/j6c_o>9P05o`0b9/hVcRK>9/hVcRK>9/koc/7>`Lk1c/7>`Lk1c/7>`Lk1ok7>
+/Ljac[7>/Ljac[7>/Lh?o`0hc/7>`Lk1c/7>`OoEc]G>eLkEc]G>eLkEc]G>eLkEc]G>ojG1ol6U`JG1
+YL6U`JG1YL6U`JG1YOlB0003o`0003H00004oa0000?o00009@000ol0000a0006ol5V`FK10ol06L7o
+ooo1U/6F`IK1U/6F`Oo1I/5V`FK1I/401_l064K1A/7o`F_1Jl5[`F_1Jl5[`F_1Jl5[`@Co02PV`BK1
+9/4V`BK19/4V`BK19/4Volh6cPK>1/h6cPK>1/h6cPK>1/ko1Lh:o`179/hVcRKoYL6U`JG1YL6U`JG1
+YL6U`JG1YL7o9/4V`BK19/4V`BK19/4V`BK19/4Vohk>S_n>cXk>S/j>cXk>S/j>cXk>S_l04P000ol0
+000500Co0`02o`@00_l400;o700001@000?o000010000ol0000N00;o<`000oo>o`02o`0Gc_ooolj6
+cXK>Q/j6cXK>Q/j6c_o>I/h01Ol06Lh[cR_>:lh[cR_>olj6cXK>Q/j6cXK>Q/h01Ol08lh[obK>9/hV
+cRK>9/hVcRK>9/hVcRK>9_o1c/7>`Lk1c/7>00ko05;1c/7>`Lk1c/7>`Lk1c/7>olk1c/7>`Lk1c/7>
+`Lk1c/7>`Lkoc]G>eLkEc]G>eLkEc]G>eLkEc]G>eOo1YL7o`JG1YL6U`JG1YL6U`JG1YL7o4P000ol0
+00050003o`00008000Co003o0P001?l00?l20004o`00oa/0000l0003o`0003400ol05/7oooo1U/6F
+`IK1U/6F`IK1U/6F`IH4o`0J`DK1A/56`DK1A/56`DK1A/7o`F_1Jl5[`F/4o`0L`DK1A/56`DKo9/4V
+`BK19/4V`BK19/4V`BK19Pco060F`AK15/4F`AK1olhVcRK>9/hVcRK>9/hVcRK>9/hVojG1YL6U`JG1
+YL6U`JG1YL6U`JGo`BK19/4V`BK19/4V`BK19/4V`BK1olj>c_o>S/j>cXk>S/j>cXk>S/j>c_lC0003
+o`0000D000Go0000o`020004o`00o`8000Co003o0P000ol0000I0000?0000ol0000_00;o0`02o`0A
+Q/j6cXK>Q/j6cXK>Q/j6cXH00ol06FKo:lh[cR_>:lh[cR_>:lh[cR_>:lkocXH01Ol06b_>:lh[cR_>
+:lh[cR_o9/hVcRK>9/hVcRK>9P05o`1AE/iFol7>`Lk1c/7>`Lk1c/7>`Lk1c/7o`Lk1c/7>`Lk1c/7>
+`Lk1c/7>`Oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1c_o>eLkEc]G>eLkEc]G>eLkE01co4P000ol000060004
+o`00o`8000Co003o0P001?l00?l20003o`0001T0000l0003o`0002`00ol7000>oiK1U/6F`IK1U/6F
+`IH3o`0HJl5[`F_oA/56`DK1A/56`DK1A/56`DK11?l074K1A/56`DK1A/56`DK1A/56`DKo9/4V`BK1
+9/44o`1;c/7>`Lk1c/7>ol4F`AK15/4F`AK15/4F`AK15/7ocRK>9/hVcRK>9/hVcRK>9/hVc_o1YL6U
+`JG1YL6U`JG1YL6U`JG1obK19/4V00_o1Lh05oo1c/7>olk1c/7>`Lk1c/7>`Lk1c/7o01<000?o0000
+0P001?l00?l20004o`00o`8000Co003o0P001?l00?lK0000>`02ob/00ol;000:ohK>Q/j6cXK>QP?o
+01MVcVK>I/iVcVKo:lh[cR_>:lh[cR_>:`04o`0KcVK>olh[cR_>:lh[cR_>:lh[cR_>:lh[obK>00Go
+02g>E/iFcUK>E/iFcUK>E_o1c/7>`Lk1c/7>`Lk1c/7>`Lk1ol7>`Lk1c/7>`Lh08_l0:;7>/Ljac[7>
+/Ljac[7>/Ljaok7>/Onac[7>/Ljac[7>/Ljac[7>/OlA00?o1002o`@00_l400;o1002oa`0000k0003
+o`0002L00ol?0006oiK1U/6F0ol05F_1Jl5[`F_1Jl5[`F_oA/56`DK1AP05o`0JE/5F`EK1E/7o`DK1
+A/56`DK1A/56`DK1A/45o`0O`Lk1c/7>`Lk1c/7>`Lk1c/7>`Lko`AK15/4F`AK15P0Co`0NeLkEc]G>
+eLkEolj1cX7>PLj1cX7>PLj1cX7>PLko5Lh05oo>`Lk1ol7>`Lk1c/7>`Lk1c/7>`Lko00h00ol20003
+o`000380000k0003o`0002@00olC0003ohKo00;o01AVcVK>I/iVcVK>I/iVcVK>I_l[cPCo01UVcVK>
+I/iVcVK>I/iVc_o>:lh[cR_>:lh[00Ko01S>:lh[oeK>E/iFcUK>E/iFcUK>E/iFcUH<o`1Mc/7>`Lk1
+c/7>olk1c/7>`Lk1c/7>`Lk1c/7>`Lkoc[7>/Ljac[7>/Ljac[7>/Ljac_o>/Ljac[7>/Ljac[7>/Lja
+c[7>/Lkoc[7>/Onac[7>/Ljac[7>/Ljac[7o00/00ol50003o`000380000k00;o8P03oaL001CoJl5[
+`F_1Jl5[`F_1Jl5[`F_1J`Co01O1E/5F`EK1E/5F`EK1E/5F`EK1ol56`@06o`0Ic/7>`Lk1c/7>`Lko
+c/7>`Lk1c/7>`Lk1cP05o`0oc/7omL7e`OG1mL7e`OG1mL7e`OG1mOoEc]G>eLkEc]G>eLkEc]G>eLkE
+olj1cX7>PLj1cX7>PLj1cX7>PLko01G>01Koc/7>`Oo1c/7>`Lk1c/7>`Lk1c/7o1P04o`P000?o0000
+<P0003/000?o00007`02oa/0013oI/iVcVK>I/iVcVK>I/iV0ol05UK>E_mVcVK>I/iVcVK>I/iVcVK>
+I/h5o`0KcR_>:lh[cR_>:lh[cR_>:lh[oeK>E/iFcUK>00Co06l[cR_>:lh[c_o>`Lk1c/7>`Lk1c/7>
+`Lk1c/7>olk1c/7>`Lk1c/7>`Lk1c/7>`Lkoc[7>/Ljac[7>/Ljac[7>/Ljaok7>/Ljac[7>/Ljac[7>
+/Ljac[7>/Onac[7>oljac[7>/Ljac[7>/Ljac_l00`03o``000?o0000<P0002H00ol300?o1002o`H0
+00?o00007003oah000_oJl5[`F_1Jl5[`@04o`0EE/5F`EK1E_mF`EK1E/5F`EK1E/5F00Co01_1c/7o
+`Lk1c/7>`Lk1c/7>`Lk1c/7>`Lkoc/401Ol0BL7>`Lk1c/7>`Lk1c/7omL7e`OG1mL7e`OG1mL7e`OG1
+olkEc]G>eLkEc]G>eLkEc]G>eLkoPLj1cX7>PLj1cX7>PLj1cX7>POl04/h9o`0?c/7>`Lk1c/7>`Lk1
+c/7>00?o40000ol0000a00009`000ol000050004o`00o`8000?o00000`000ol0000I00?o8P001omV
+cVK>I/h00ol05<iFcUK>E/iFcUK>E_mVcVK>I/iV1Ol06UK>E/iFcUK>olh[cR_>:lh[cR_>:lh[cR_>
+1Ol0FLh[cR_>:lh[cR_>:lh[cR_>:lkoc/7>`Lk1c/7>`Lk1c/7>`Lk1ol7>`Lk1c/7>`Lk1c/7>`Lk1
+c/7o/Ljac[7>/Ljac[7>/Ljac[7>oljac[7>/Ljac[7>00Oo00S>`LkoIL5U`@Oo00Zac[7>/Ljac[7o
+4P000ol0000a00009`000ol000050004o`00o`8000?o00000`000ol0000F00?o9P000om[`@03o`0C
+`EK1E/5F`EK1E/5F`EK1E_mF`@04o`0Ic/7>`Lk1c/7>`Lk1c/7o`Lk1c/7>`Lk1cP06o`0S`DK1A_o>
+`Lk1c/7>`Lk1c/7>`Lk1c/7>`Ooe`OG1mL7e`OD0:?l02H7>PLj1cX7>o`03cPOo01HFcQK>5/hFcQK>
+5_n>`Hk1S_n>`Hk11ol00l7>o`0B0003o`000340000W0003o`0000800ol30004o`00o`@000?o0000
+5003obX00_l04/iFcUK>E/iFcUK>E/iFcUK>EPCo01O>E/iFcUK>E/iFcUK>E/iFcUK>olh[cP06o`0M
+:lh[cR_>:lh[cR_o:lh[cR_>:lh[cR_>:lh[cR/03?l0:<k1c/7>`Lk1c_o>/Ljac[7>/Ljac[7>/Lja
+c[7>oiG1UL6E`IG1UL4<o`0Tc/7>`Lk1c/7>`Lk1c/7>`Lk1ol5U`FG1ol5U`FG1IL5U`FG11?lA0003
+o`000340000W0003o`00008000?o00000`001?l00?l40003o`0001400ol^000@oeK1E/5F`EK1E/5F
+`EK1EP?o01JF`IKoc/7>`Lk1c/7>`Lk1c/7>`Lk11Ol07L56`DK1A/56`DK1A/56`DK1A_o>`Lk1c/7>
+`Lk100Ko06S>`Lko`@K11/46`@K11/46`@K11/46olk1c/7>`Lk1c/7>`Lk1c/7>`LkocVG>ILiUcVG>
+ILiUcVG>ILiUolhFcQK>5/hFcQK>5/hFcQK>5/hFc_o1S/6>`Oo1S/6>`Hk1S/6>`Hk1oa4000?o0000
+<@0002H00_l400Co0`02o`D000?o00003P03oc8000_oE/iFcUK>E/iFcP04o`0EQ/j6cXK>Q_mFcUK>
+E/iFcUK>E/iF00Co01c>:ol[cR_>:lh[cR_>:lh[cR_>:lh[cR_o:lh[1_l0KlhVcRK>9/hVcRKo`Lk1
+c/7>`Lk1c/7>`Lk1c/7>oljac[7>/Ljac[7>/Ljac[7>/Oo1UL6E`IG1UL6E`IG1UL6E`IG1ol7>`Lk1
+c/7>`Lk1c/7>`Lk1c/7>`Oo1IL5U`Oo1IL5U`FG1IL5U`FG1o`0@0003o`000340000j00;o3@02ocH0
+00OoE/5F`EK100?o01C1U/6F`IK1U/6F`IKoc/7>`Lk1cPGo01]6`DK1A/56odK1A/56`DK1A/56`DK1
+A/56`DH01Ol0M/k1c/7>`Lk1c/7>`Lk1c/7>ol46`@K11/46`@K11/46`@K11_o>`Lk1c/7>`Lk1c/7>
+`Lk1c/7oILiUcVG>ILiUcVG>ILiUcVG>IOo>5/hFcQK>5/hFcQK>5/hFcQK>5_n>`Hk1S/7o`Hk1S/6>
+`Hk1S/6>`Ol?0003o`000340000j0003o`0000T00oli0003oeK>00?o01?>Q/j6cXK>Q/j6cXK>Q/j6
+oeK>00Co01/[cR_>:lh[cR_>:lh[ob_>:lh[cR_>:lh[cR/01Ol0NeK>olhVcRK>9/hVcRK>9/hVcRK>
+9/koc/7>`Lk1c/7>`Lk1c/7>`Lk1ok7>/Ljac[7>/Ljac[7>/Ljac_nE`IG1UL6E`IG1UL6E`IG1UL6E
+olk1c/7>`Lk1c/7>`Lk1c/7>`Lk1c_mU`FG1IOmU`FG1IL5U`FG1IL5Uo`0?0003o`000340000j0003
+o`0000H00olm00;o01;1U/6F`IK1U/6F`IK1U/6F`IH4o`0K`DK1A/56`DK1A/56`DK1A/56odK1A/56
+`DK100Co087>`Lk1c/7>`Oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1o`K11/46`@K11/46`@K11/46`Oo1c/7>
+`Lk1c/7>`Lk1c/7>`LkocVG>ILiUcVG>ILiUcVG>ILiUc_lFcQK>5/hFcQK>5/hFcQK>5/hFc_o1S/6>
+`HkoS/6>`Hk1S/6>`Hk1S_l03`000ol0000`0000>P000ol0000300?o@P003_o>Q/j6cXK>Q/j6cXK>
+1?l06VK>I_l[cR_>:lh[cR_>:lh[cR_>:lh[ob_>1Ol07LiFcUK>E/iFcUK>E/kocRK>9/hVcRK>9/hV
+cRK>02;o01:ac[7>/Ljaol6E`IG1UL6E`IDeo`h000?o0000<00003T00_l200?oAP02o`07U/6F`IK1
+UP04o`0I`FK1I/5V`FKoA/56`DK1A/56`DK1A/56`@05o`0I`Lk1c/7>`Lk1c/7>`Lk1c/7>`Oo1c/7>
+`@09o`0R`OG1mOo1c/7>`Lk1c/7>`Lk1c/7>`LkoJ/5Z`F[1J/5Z`A;o00/?`@o13l4?`@o1o`0DcP0F
+oh7EPMF1eOoEPMF1eH7EPMF1eH7Eo`h000?o0000<00003T01?m;0003ohK>00Co01MVcVK>I/iVcVK>
+I/iVob_>:lh[cR_>:`06o`0FcUK>E/kocUK>E/iFcUK>E/iFcUK>EPSo07?>1/h6cPK>1/h6cPK>1_na
+c[7>/Ljac[7>/Ljac[7>/Lko`Lk1c/7>`Lk1c/7>`Lk1c/7oc/7>`Lk1c/7>`Lk1c/7>`Lk1c/7o/Lja
+c[7>/Ljac[7>/Ljac[7>/LkoILiUcVG>oliUcVG>ILiUcVG>ILko00d000?o0000<00003T00_m>00;o
+01K1I/5V`FK1I/5V`FK1I/5V`FKoA/561Ol05/k1c/7>`Lk1c/7>`Oo1c/7>`Lk1c/46o`1Ac/7>ooG1
+mL7e`OG1mL7e`OG1mL7e`OGo`Lk1c/7>`Lk1c/7>`Lk1c/7>of[1J/5Z`F[1J/5Z`F[1J/5Zo`o13l4?
+`@o13l4?`@o13l4?`@oo01C>01KoeH7EPMF1eOoEPMF1eH7EPMF1eH7o3@000ol0000`0000>`000ol0
+001<000BofK>I/iVcVK>I/iVcVK>I/iV1Ol05UK>E/iFcUK>E/iFcUK>E/iFc_o>E/h5o`21cR_>:lh[
+cR_>:ol6cPK>1/h6cPK>1/h6cPK>1/h6ok7>/Ljac[7>/Ljac[7>/Ljaolk1c/7>`Lk1c/7>`Lk1c/7>
+`Oo>`Lk1c/7>`Lk1c/7>`Lk1c/7>oljac[7>/Ljac[7>/Ljac[7>/LkoILiUcVG>ILkocVG>ILiUcVG>
+ILko00d000?o0000<00003`000?o0000C0003OmV`FK1I/5V`FK1I/401?l05UK1E_o>`Lk1c/7>`Lk1
+c/7>`Lk1c/45o`1N`Lk1c/7>`Lk1c/7>`Lk1c_oe`OG1mL7e`OG1mL7e`OG1mL7eol7>`Lk1c/7>`Lk1
+c/7>`Lk1ol5Z`F[1J/5Z`F[1J/5Z`F[1J_l?`@o13l4?`@o13l4?`@o13l4?oa?>01KoPMF1eH7EPOn1
+eH7EPMF1eH7EPMGo30000ol0000`0000?@000ol0001<0008ofK>I/iVcVH4o`0FcTK>A/i6cTKoE/iF
+cUK>E/iFcUK>EPCo02K>E/kocR_>:lh[cR_>:lh[cR_>:lh[o`K>1/h6cPK>1/h6cPK>1SCo03;>`Lk1
+c/7>`Onac[7>/Ljac[7>/Ljac[7>/LjaoliUcVG>ILiUofG>ILiUcVG>ILiUo`d000?o0000;`0003h0
+0_m=0003ofK100Co01EF`EK1E/5F`EK1E/5Folk1c/7>`Lh01Ol08Lk1c/7>`Lk1ol7>`Lk1c/7>`Lk1
+c/7>`Lk1c_oe`OG1m@09o`0dc/7>`Ol[`B_1:l4[`B_1:l4[`B_1:oo2`L;1`/72`L;1`/72`L;1`/7o
+`Lk1c/7>`Lk1cPko3lh05_oEPMF1eH7EPOn1eH7EPMF1eH7EPOl<0003o`0002l000100003o`0004/0
+0_l05Li6cTK>A/i6cTK>A/i6cTK>A_mFcP04o`0ME/iFcUK>E/iFcUK>E/kocR_>:lh[cR_>:lh[cR/0
+2Ol0B2_>:lh[cR_>:lh[cR_>olk1c/7>`Lk1c/7>`Lk1c/7>olk1c/7>`Lk1c/7>`Lk1c/7>`Onac[7>
+/Ljac[7>/Ljac[7>/Ljao`?11ol07[7>/Ljac[7>ofG>ILiUcVG>IOmUcVG>ILiUcVG>o``000?o0000
+;`00044000?o0000B`004_mF`EK1E/5F`EK1E/5F`EK1EPCo01S1c/7>`Lk1c/7>`Lk1c/7>`Lk1ol7>
+`Lh9o`1Kc/7>`Oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1ob_1:l4[`B_1:l4[`B_1:l4[ol;1`/72`L;1`/72
+`L;1`/72`Oo1c/7>`Lk1c/7>`Lk1c/7>`Lk1ol5U`FG1IL5U`@07o`0Hc_oEPMF1eH7EPMGoeH7EPMF1
+eH7EPMGo2`000ol0000_0000@P000ol0001;000=odK>A/i6cTK>A/i6cP04o`0EQ/j6c_o>E/iFcUK>
+E/iFcUK>E/iF00Oo05a6cTK>A/i6cTK>A/i6c_o>:lh[cR_>:lh[cR_>:lh[cR_>olk1c/7>`Lk1c/7>
+`Lk1c/7>olk1c/7>`Lk1c/7>`Lk1c/7>oljac[7>/Ljac[7>/Ljac[7>/Ljao`o12Ol03liUc_o>ILiU
+cVG>ILiUo`0;0003o`0002l0001300;oC0002?mF`EK1E/5F1?l04l66`HK1Q/66`Oo1c/7>`Lk1c/40
+1_l09/k1c_o>`Lk1c/7>`Lk1c/7>`Lk1c/7o`Lk1c/7>`Lk1c/7>`Lk18Ol04/;1`/72`L;oc/7>`Lk1
+c/7>`@ko00iU`FG1IL5U`FG1IL5Uo`K12ol01=F1eOl;0003o`0002l000150003o`0004X000?oA/h0
+1?l04XK>Q/j6cXK>Q/j6cXK>oliFcPGo02?>:lh[cR_>:lh[odK>A/i6cTK>A/i6cTK>A/i6c_o>:lh[
+cP09o`0QcRK>9_o>`Lk1c/7>`Lk1c/7>`Lk1c/7o`Lk1c/7>`Lk101;o00k>J/iZcV[>J/iZodG>A@Go
+2L404Oo1c/7>`Lk1c/7o`Lk1c/7>00Go2P000ol0000_0000AP000ol0001:00;o0171Q/66`HK1Q/66
+`HK1Q/66`@05o`0O`Lk1c/7>`Lk1c/7>`Lk1c_o>`Lk1c/7>`Lk1c/7>`@09o`1?`Lk1c/7>`Lk1c/7>
+`LkoaL75`LG1aL75`LG1aL75`LG1ol;1`/72`L;1`/72`L;1`/7ocW7>LLiacW7>LLiacW7>LLiacW7o
+PFZ1JX5ZP@05o`06IL5U`FGo2L400oo1`@07`@03o`0000P000?o0000;`0004L000?o0000BP003_n6
+cXK>Q/j6cXK>Q/j61?l06liVob_>:lh[cR_>:lh[cR_>:lh[cR_oA/i6cP09o`1McRK>9/kocRK>9/hV
+cRK>9/hVcRK>9/hVolk1c/7>`Lk1c/7>`Lk1c/7>`Oo1c/7>`Lk1c/7>`Lk1c/7>oliZcV[>J/iZcV[>
+J/iZcV[>J/kocTG>ALi5cTG>ALi500Go01K1ol7>`Lk1c/7>`Oo1c/7>`Lk1c/7o2P000ol0000^0000
+B002od/000SoQ/66`HK1QPGo01QV`FK1I/5Volk1c/7>`Lk1c/7>`Lk1c/47o`1[`Lk1c/7>`Lk1c/7>
+`Lk1ol7>`Lk1c/7>`Lk1c/7>`Lk1c_o5`LG1aL75`LG1aL75`LG1aL7o`/72`L;1`/72`L;1`/72og7>
+LLiacW7>LLiacW7>LLiacW7>ofZ1JX5ZPFZ1JX5ZPFZ1JX403_l8`@03o`0000L000?o0000;P0004X0
+00?o0000B@000on6cP04o`0GI/iVcVK>I/iVcVK>I_l[cR_>:lh[cR/01_l09/iFcUKo9/hVcRK>9/hV
+cRK>9/hVcRK>olhVcRK>9/hVcRK>9/hV6Ol0@Lk1c/7>`Lk1c/7>`Lk1of[>J/iZcV[>J/iZcV[>J/iZ
+cV[oALi5cTG>ALi5cTG>ALi5cTG>ohiZSVZ>JXiZS_n>00[o20000ol0000^0000B`000ol0001900;o
+01K1I/5V`FK1I/5V`FK1I/5V`FKoc/7>1Ol08lk1c/7>`Lk1c/7>olk1c/7>`Lk1c/7>`Lk1c/7>`Oo1
+c/7>00Wo01W>`Lk1c_o1UL6E`IG1UL6E`IG1UL6E`OnU00?o04S1`/72`L;1`/72`Oo>LLiacW7>LLia
+cW7>LLiacW7>LOn1JX5ZPFZ1JX5ZPFZ1JX5ZPOlEJQEZ5FXEJQEZofXEJQEZ5FXEJ_l80003o`0002h0
+001<0003o`0004T001;oI/iVcVK>I/iVcVK>I/iVcVH5o`0PE/iFcUK>E/iFcUK>E/iFcUKo9/hVcRK>
+9/hVcRK>9/h8o`0U9/hVcRK>9/hVcRK>9/hVol7>`Lk1c/7>`Lk1c/7>`Lk1ol4Z`@03o`16c/7>`Lk1
+c/7>oliZcV[>J/iZcV[>J/iZcV[>J/kocTG>ALi5cTG>ALi5cTG>ALi5ofZ>JXiZSVZ>JXkoSVZ>JXiZ
+SVZ>o`L000?o0000;P0004d00_m:000=ofK1I/5V`FK1I/5V`@04o`0LE/5Folk1c/7>`Lk1c/7>`Lk1
+c/7>`Lkoc/7>`@Wo0331c/7>olk1c/7>`Lk1c/7>`Lk1c/7>`Lko`IG1UL6E`IG1UL6E`IG1UOn1YH6U
+PJD3o`14`L;1`/72og7>LLiacW7>LLiacW7>LLiacW7oPFZ1JX5ZPFZ1JX5ZPFZ1JX5ZofXEJQEZ5FXE
+JQEZofXEJQEZ5FXEJ_l60003o`0002h0001?0003o`0004P000SoI/iVcVK>IPCo01W>I/iVcVK>I_mF
+cUK>E/iFcUK>E/iFcUK>00Oo03c>9/hVcRK>9/hVcRK>9_lVcRK>9/hVcRK>9/hVcRK>9/hVol7>`Lk1
+c/7>`Lk1c/7>`Lko:/4Z`B[1:/42o`13`Lk1c_o>J/iZcV[>J/iZcV[>J/iZcV[>J_m5cTG>ALi5cTG>
+ALi5cTG>AOmZSVZ>JXiZSVZ>J_mZSVZ>JXiZSVZ>o`050003o`0002h0001@0003o`0004P000?oI/40
+1?l05eK1E/5F`EK1E/5F`EKoc/7>`Lk1c/7>00Ko02K1c/7o`Lk1c/7>`Lk1c/7>`Lk1c/7>olk1c/7>
+`Lk1c/7>`Lk1cPOo01S1UL6E`IG1UL6E`IG1ojF1YH6UPJF1YH43o`0o`/7ocW7>LLiacW7>LLiacW7>
+LLiac_mZPFZ1JX5ZPFZ1JX5ZPFZ1J_mZ5FXEJQEZ5FXEJQGo5FXEJQEZ5FXE00;o10000ol0000^0000
+D@000ol0001800;o01K>I/iVcVK>I/iVcVK>I/iVcVKoE/iF1Ol08b_>:lh[cR_>:lkocRK>9/hVcRK>
+9/hVcRK>9/hVobK>9/hV00Wo00N>UHjEoeF>00Go01K1c/7>`Lk1c_lZ`B[1:/4Z`B[1:/4Z0ol02V[>
+J/iZcV[>J/h<o`0XALi5cTG>ALi5cTG>ALi5c_n>JXiZSVZ>JXiZSV[oJXiZSVZ>J_m6o`D000?o0000
+;@0005800_m:000@ol5F`EK1E/5F`EK1E/5F`@Ko01o>`Lk1c/7>`Lk1c/7>`Lk1ol7>`Lk1c/7>`Lk1
+c/7>00Wo01EEaEG5ELEEaEG5ELEEogjaO[5n/Gh01?l05IG1UL6Eoh6UPJF1YH6UPJF1YH6UP@0:o`[>
+02GoPOn1JX5ZPFZ1JX5ZPFZ1JX7o5FXEJQEZ5FXEJQEZofXEJQEZ00;o00?>U_l01@000ol0000]0000
+E0000ol00018000:oliVcVK>I/iVcPGo01c>I/iVc_o>:lh[cR_>:lh[cR_>:lh[c_o>9/hV2Ol08/jE
+cYGoUHjESYF>UHjESYF>UHjESYF>ohiESUF>EHiESUD6o`0V`B[1:/4Z`B[1:/4Z`B[1ok7>/Ljac[7>
+/Ljac[7>/Ljac[7o:W42o`0PcTG>ALi5cTG>ALi5c_n>JXiZSVZ>JXiZSVZ>ohiZS_l5AP03o`000080
+00?o0000;@0005D000?o0000B0001?o1E/45o`0I`EK1E/5F`EK1E/7o`Lk1c/7>`Lk1c/7>`@08o`0`
+cVG>ILiUcVG>ILiUcVGoaEG5ELEEaEG5ELEEaEG5ELGo/GjaO[5n/GjaO[5n/Gja1?l03ZF1YH6UPJF1
+YH6UPJGo4lh01?lZPBX2o`0TPFZ1JX5ZPFZ1JX7o5FXEJQEZ5FXEJQEZ5F[oJ_nFcYK>U/ko10000ol0
+000]0000EP000ol0001800?o01K>I/iVcVK>I/iVcVK>I/iVc_o>:lh[2?l0?<kUc^GocYG>ULjEcYG>
+ULjEcYG>ULkoSYF>UHjESYF>UHjESYF>UHkoSUF>EHiESUF>EHiESUF>EOmUSPGo03c1:/4Z`B[1:/7o
+/Ljac[7>/Ljac[7>/Ljac[7>og4ZLBYaodG>ALi5cTG>ALi5ofZ>JXiZSVZ>JXiZSVX2o`M600?o0000
+0P000ol0000]0000E`02odT0017o`EK1E/5F`EK1E/5F`EK1EP07o`19A/56`DK1A/56`DK1A_o>ILiU
+cVG>ILiUcVG>ILiUolEEaEG5ELEEaEG5ELEEaEG5EOmn/GjaO[5n/GjaO[5n/Gko5BDE9ADU5@05o`05
+YH6UPOl04/h01olZPBZ1:X400_l08VZ1JX5ZPFZ1J_mZ5FXEJQEZ5FXEJQGoc_o>U/jFcYK>U_l30003
+o`0002d0001I0003o`0004L000[ocVK>I/iVcVK>1_l0EDK>A_oUc^G>iLkUc^G>iLkUc^G>oiG>ULjE
+cYG>ULjEcYG>ULjEoiF>UHjESYF>UHjESYF>UHjEoeF>EHiESUF>EHiESUF>EHkoSVF>IHiUSVF>IHh0
+1_l06/jac[7>/Ljac[7>/Ljac[7>/OlZLBYa:W4Z0_l04TG>ALi5cTGoJXiZSVZ>JXiZSP;o0dH00om6
+AP05AP05o`000?l0;`0005X000?o0000A`001?o1E/45o`1P`B_1:l4[`B_1:om6`DK1A/56`DK1A/56
+`DK1ofG>ILiUcVG>ILiUcVG>ILkoELEEaEG5ELEEaEG5ELEEaEGoO[5n/GjaO[5n/GjaO[5n/OlU5BDE
+9ADU5BDE9ADU5BDE0ol@cP0Zoh4ZPBZ1:X4ZPOn1JX5ZPF[oJQEZ5FXEJQEZoiK>U/jFc_o>U/jFcYKo
+0`000ol0000]0000F`000ol0001700?o06S>A/i6cTK>A/i6cTK>A/i6onG>iLkUc^G>iLkUc^G>iOo>
+ULjEcYG>ULjEcYG>ULjEoiF>UHjESYF>UHjESYF>UHjEoeF>EHiESUF>EHiESUF>EHkoSVF>IHiUSVF>
+IHiUSVF>IHkoP@?o01Rac[7>/Ljac[7>/LjaobYa:W4ZLBYa:W42o`0<cTG>ALkoSVZ>JXiZ0_l8AP03
+odI600=600?o00000P000ol0000/0000G002odP006go`B_1:l4[`B_1:l4[`B_1:l7o`DK1A/56`DK1
+A/56`DK1A_o>ILiUcVG>ILiUcVG>ILiUolEEaEG5ELEEaEG5ELEEaEG5ok5n/GjaO[5n/GjaO[5n/Gko
+5BDE9ADU5BDE9ADU5BDE9AGo1Lh500?o2/h0:on1:X4ZPBZ1:X4ZPB[oJX5ZPOlEJQEZ5Oo>U/jFcYK>
+U/jFoiK>U/jFc_l00`000ol0000/0000GP000ol00016001_oli6cTK>A/i6cTK>A/i6cTK>olkUc^G>
+iLkUc^G>iLkUc_nEcYG>ULjEcYG>ULjEcYG>ohjESYF>UHjESYF>UHjESYF>ohiESUF>EHiESUF>EHiE
+SUGoIHiUSVF>IHiUSVF>IHiUSVGo9H4UPBF100?o01Fac[7>/Ljac_ma:W4ZLBYa:W4ZLBX00_l024G>
+ohiZSV[o34H00om6AP03AP05o`000?l0;P0005l000?o0000AP003_o1:l4[`B_1:l4[`B_16Ol0BVG>
+ILiUcVG>ILiUolEEaEG5ELEEaEG5ELEEaEG5ok5n/GjaO[5n/GjaO[5n/Gko5BDE9ADU5BDE9ADU5BDE
+9AGo1Lh5cPG>1Lh50ol5cP0?obZ1:X4ZPBZ1:X4ZPBZ100?o01PEJ_oocYK>U/jFcYK>U/jFcYKoU/jF
+c_l30003o`0002`0001P0003o`0004H000GocTK>AP08oaT02Ol0A9G>UOnESYF>UHjESYF>UHjESYF>
+UOmESUF>EHiESUF>EHiESUF>ohiUSVF>IHiUSVF>IHiUSVF>oh4UPBF19H4UPBF10ol04k7>og4ZLBYa
+:W4ZLBYa:W4ZLBX00ol@AP03odI600=600Co003o;P0006400_m700Co:P0Go`0`/GjaO[5n/GjaO[5n
+/GjaobDE9ADU5BDE9ADU5BDE9ADUolh5cPG>1Lh5cPG>1Lh51?l0:H4ZPBZ1:X4ZPBZ1:X4ZPB[oU/jF
+cYK>U/jFcYK>U/jFcYK>oljFcYKo008000?o0000;00006<000?o0000A0000ol0001200?o031ESUF>
+EHiESUF>EHkoSVF>IHiUSVF>IHiUSVF>IHkoPBF19H4UPBF19H4UPBF19H43o`0?:W4ZLBYa:W4ZLBYa
+:W7o01=600GoATI6o`020003o`0002`0001T0003o`0004<000?o0000A@03o`0`/GjaO[5n/GjaobDE
+9ADU5BDE9ADU5BDE9ADU5Ol5cPG>1Lh5cPG>1Lh5cPG>ok6>1?l08h4ZPBZ1:X4ZPBZ1oljFcYK>U/jF
+cYK>U/jFcYK>U/kocYKo00<000?o0000:`0006D000?o0000@P000ol0001800?o035ESUF>EHiEofF>
+IHiUSVF>IHiUSVF>IHiUobF19H4UPBF19H4UPBF19H4UodF>AHi500Go00Qa:W4ZLBYaoa9600KoATI6
+o`02obd0001V00;o@P000ol0001;00;o03An/GjaO_lE9ADU5BDE9ADU5BDE9ADU5Ol5cPG>1Lh5cPG>
+1Lh5cPG>1On>/HjaS[6>/Hja1?l06RZ1:_nFcYK>U/jFcYK>U/jFcYK>U/jFoiK>0_l00h7o000/0000
+J0000ol0000o0003o`0004d00ol0=HiEofF>IHiUSVF>IHiUSVF>IHiUS_n19H4UPBF19H4UPBF19H4U
+odF>AHi5STF>AHi5STF>00Go4dH01?m6ok42obd0001Y0003o`0003h000?o0000D004o`089ADU5BDE
+9AD;o`0R1Lh5cPG>1Lh5cPG>1Lh5c_naS[6>/HjaS[6>/HjaS[6>/@go00[>U/jFcYK>U_nF0ol]0000
+JP000ol0000m0003o`0005<02Ol;00?o02b19H4UPBF19H4UPBF1ohi5STF>AHi5STF>AHi5STF>AOo>
+/Ljac[7>/LjacP_o00<0o`00;00006/00_lm0003o`0006X00ol0:PG>1Lh5cPG>1Lh5ohjaS[6>/Hja
+S[6>/HjaS[6>/Oo>PLj1cX7>PLj1cP;o1P001?l00?l]0000K@000ol0000j0003o`0006d00_l09RF1
+9H4UPBF19Om5STF>AHi5STF>AHi5STF>AHko/Ljac[7>/Lja0_l90003o`3o02d0001^0003o`0003T0
+00?o0000K`03o`0QcPG>1Lh5ohjaS[6>/HjaS[6>/HjaS[6>/HkoPLj1cX7>00;o2`001?l00?l/0000
+K`000ol0000h0003o`0007800_l07H4UPBF1ohi5STF>AHi5STF>AHi5STF>AHko/Lja00;o3P000ol0
+o`0/0000L002ocP000?o0000M003o`0H1Lko/HjaS[6>/HjaS[6>/HjaS[6>/Oo>0_lA00;o;0000780
+00?o0000=@000ol0001g00?o00Z>AHi5STF>AHi52olB00?o;00007<000?o0000<`000ol0001k00[o
+6@04obl0001d0003o`00038000?o0000VP04oc<0001e0003o`00034000?o0000U`03ocL0001f00;o
+<@000ol0002C00Co>P0007P000?o0000;P000ol0002?00Co?P0007T000?o0000;@000ol0002;00Co
+@P0007X000?o0000;0000ol0002700CoAP0007/00_l/0003o`0008@00om:0000O@000ol0000Y0003
+o`0008001?m=0000OP000ol0000X0003o`0007`01?mA0000O`000ol0000W0003o`0007P01?mE0000
+P002obL000?o0000M004oeT000220003o`0002@000?o0000L004oed000230003o`0002<000?o0000
+K@03of4000240003o`00028000?o0000J@04of@0002500;o8P000ol0001U00CoJ00008L000?o0000
+7`000ol0001Q00CoK00008P000?o00007P000ol0001M00CoL00008T000?o00007@000ol0001J00?o
+M00008X00_lM0003o`0005H01?mg0000S0000ol0000J0003o`0005801?mk0000S@000ol0000I0003
+o`0004h01?mo0000SP000ol0000H0003o`0004X01?n30000S`02oaP000?o0000AP04ohL0002A0003
+o`0001D000?o0000@`03oh/0002B0003o`0001@000?o0000?`04ohh0002C0003o`0001<000?o0000
+>`04oi80002D00;o4`000ol0000g00CoUP0009H000?o000040000ol0000c00CoVP0009L000?o0000
+3P000ol0000a00?oWP0009P000?o00003@000ol0000]00CoX@0009T00_l=0003o`0002T01?nU0000
+V`000ol0000:0003o`0002D01?nY0000W0000ol000090003o`0002401?n]0000W@000ol000080003
+o`0001d01?na0000WP02o`P000?o00006P03okD0002P0003o`0000D000?o00005P04okP0002Q0003
+o`0000@000?o00004P04ok`0002R0003o`0000<000?o00003P04ol00002S00;o0`000ol0000:00Co
+a0000:D000Co003o2@03olP0002V0003o`3o00D01?o;0000Y`02o`030?oo00;oc`000:P00_oC0000
+o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000
+o`1n0000o`1n0000E003o`<01Ol00`3oo`02o`801?l200Go0P03o`<01?l600?o1005o`800ol300?o
+2@03o`801?l900?o0P02o`030?oo00801?l600;o0P02o`030?oo00?o00@0ool00_l200?o0P05o`06
+0?l0o`3o0P04o`L01Ol0103oo`02o`L00ol400Co0P03o`<00ol200;o00<0ool00P09odL0001D0004
+o`00o`8000Co003o0`000ol000030003o`00008000Co003o0P001ol0003o0?l02`000ol000050005
+o`000?l00`001?l00?l20003o`0000D000Go0000o`020003o`0000T000Ko003o0?l20004o`00o`/0
+00Co0?oo0P001?l00?l20004o`00o`<000Co003o0`002ol0003o0?l0o`3o00d000Go0000o`020003
+o`0000H000Co003o0P000ol000030007o`000?l0o`030003o`3o008000Co003o0`000ol000020003
+o`0004D0001F00;o0P001?l00?l30003o`0000<000?o00000P04o`8000?o00000`05o`L00ol50005
+o`000?l00`001?l00?l:0005o`000?l00P000ol000090003o`00008000Co003o0P05o`L00ol30004
+o`00o`8000Co003o0`000ol00004000:o`000?l0o`3o00Go2@001Ol0003o008000?o00002002o`80
+1Ol00`3o00040007o`000?l0o`020004o`00o`<000?o0?l00om70000E002o`@000Co003o0`02o`@0
+00?o00001@001?l00?l30003o`3o00<000?o00001@001?l00?l40005o`000?l00`001?l00?l:0005
+o`000?l00P000ol000090003o`00008000Co003o0P001Ol0003o00L000Co003o0P001?l00?l20004
+o`00o`<000?o000010002ol0003o0?l0o`3o00<000?o00001`001Ol0003o008000?o00001P02o`@0
+00Oo0000o`3o00<000?o0?l00`000ol0o`020004o`00o`<000?o0?l0BP0005@000Go003o0002o`03
+0?oo00800_l0103oo`04o`<00ol300Co0P03o`P000Co003o10000ol0000200?o0P04o`T00ol200Co
+2004o`801?l300?o20001Ol00?l000;o00@0ool01Ol200Co0`02o`801_l200?o2@02o`801Ol80004
+o`00o`<00ol300Co0P03o`030?oo00?o0`04o`030?oo00;oA`0005D00ol?0003o`0001T01?l50003
+o`0000P000?o00003`000ol000090003o`00008000?o00003P04oa0000?o0000;@03oah000?o0000
+BP0006L00olP00?o2P000ol0000?00?o2@001?l00002ob@000?o000010000ol0000E0003o`0002h0
+0_m<0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000
+o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000
+o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000o`1n0000\
+\>"],
+  ImageRangeCache->{{{0, 380}, {312, 0}} -> {-0.19513, -0.0690834, 
+  0.00340824, 0.00340824}}],
+
+Cell[OutputFormData["\<\
+SurfaceGraphics[\"<<>>\"]\
+\>", 
+"\<\
+-SurfaceGraphics-\
+\>"], "Output",
+  Evaluatable->False,
+  AspectRatioFixed->True]
+}, Open  ]],
+
+Cell[TextData[
+"The above graph is a surface plot of the results. The x-axis is  the number \
+of dimensions, the y-axis (\"into\" the page) is the number of popints, and \
+the vertical axis the runtime required. It can be seen once again that the \
+run-time is approximately linear with the number of points, but scales \
+approximately as the square of the number of dimensions. "], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True]
+}, Closed]],
+
+Cell[CellGroupData[{
+
+Cell[TextData["References"], "Section",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[
+"[1]     \"An Algorithm for Finding Best Matches in Logarthimic Expected Time\
+\"\n        J.H Friedman, J.L Bentley, R.A Finkel\n        ACM Transactions \
+on Mathematical Software, Vol 3 Number 3, 1977\n        Pages 200-226\n       \
+ \n [2]    \"Similarity Indexing: Algorithms and Performance\"\n        D.A \
+White, R Jain\n        Technical Report 1996, available at \
+\"http://vision.ucsd.edu/papers\""], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True]
+}, Closed]]
+}, Open  ]]
+},
+FrontEndVersion->"Macintosh 3.0",
+ScreenRectangle->{{0, 832}, {0, 604}},
+WindowToolbars->{},
+CellGrouping->Manual,
+WindowSize->{520, 509},
+WindowMargins->{{124, Automatic}, {Automatic, 1}},
+PrivateNotebookOptions->{"ColorPalette"->{RGBColor, -1}},
+ShowCellLabel->True,
+ShowCellTags->False,
+RenderingOptions->{"ObjectDithering"->True,
+"RasterDithering"->False},
+MacintoshSystemPageSetup->"\<\
+00<0001804P000000]P2:?oQon82n@960dL5:0?l0080001804P000000]P2:001
+0000I00000400`<300000BL?00400@00000000000000060001T1T00000000000
+00000000000000000000000000000000\>"
+]
+
+
+(***********************************************************************
+Cached data follows.  If you edit this Notebook file directly, not using
+Mathematica, you must remove the line containing CacheID at the top of 
+the file.  The cache data will then be recreated when you save this file 
+from within Mathematica.
+***********************************************************************)
+
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+
+(*NotebookFileOutline
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[1731, 51, 110, 3, 138, "Title",
+  Evaluatable->False],
+Cell[1844, 56, 366, 6, 62, "Text",
+  Evaluatable->False],
+
+Cell[CellGroupData[{
+Cell[2235, 66, 96, 2, 51, "Section",
+  Evaluatable->False],
+Cell[2334, 70, 277, 5, 70, "Text",
+  Evaluatable->False],
+Cell[2614, 77, 90, 1, 70, "Input"],
+Cell[2707, 80, 401, 6, 70, "Input"],
+Cell[3111, 88, 138, 3, 70, "Text",
+  Evaluatable->False],
+Cell[3252, 93, 97, 1, 70, "Input"],
+Cell[3352, 96, 347, 6, 70, "Text",
+  Evaluatable->False],
+Cell[3702, 104, 104, 1, 70, "Input"]
+}, Closed]],
+
+Cell[CellGroupData[{
+Cell[3843, 110, 101, 2, 31, "Section",
+  Evaluatable->False],
+Cell[3947, 114, 655, 10, 70, "Text",
+  Evaluatable->False],
+Cell[4605, 126, 491, 8, 70, "Text",
+  Evaluatable->False],
+Cell[5099, 136, 436, 7, 70, "Text",
+  Evaluatable->False],
+Cell[5538, 145, 471, 8, 70, "Text",
+  Evaluatable->False],
+Cell[6012, 155, 174, 3, 70, "Input"],
+Cell[6189, 160, 236, 5, 70, "Text",
+  Evaluatable->False,
+  PageBreakAbove->False],
+Cell[6428, 167, 115, 2, 70, "Input"],
+Cell[6546, 171, 730, 11, 70, "Text",
+  Evaluatable->False],
+Cell[7279, 184, 288, 9, 70, 164, 4, "GraphicsData", "PostScript", "Text",
+  Evaluatable->False,
+  PageBreakAbove->False,
+  PageBreakBelow->False],
+Cell[7570, 195, 2228, 30, 70, "Input",
+  PageBreakAbove->False],
+Cell[9801, 227, 519, 9, 70, "Text",
+  Evaluatable->False,
+  PageBreakBelow->False],
+Cell[10323, 238, 321, 7, 70, "Text",
+  Evaluatable->False,
+  PageBreakAbove->False],
+Cell[10647, 247, 408, 6, 70, "Input"]
+}, Closed]],
+
+Cell[CellGroupData[{
+Cell[11092, 258, 107, 2, 31, "Section",
+  Evaluatable->False],
+Cell[11202, 262, 994, 14, 70, "Text",
+  Evaluatable->False],
+Cell[12199, 278, 504, 8, 70, "Text",
+  Evaluatable->False],
+Cell[12706, 288, 329, 7, 70, "Text",
+  Evaluatable->False,
+  PageBreakBelow->False],
+Cell[13038, 297, 3210, 43, 70, "Input"],
+Cell[16251, 342, 427, 7, 70, "Text",
+  Evaluatable->False],
+Cell[16681, 351, 594, 9, 70, "Input"],
+Cell[17278, 362, 685, 11, 70, "Text",
+  Evaluatable->False],
+Cell[17966, 375, 1119, 16, 70, "Input"],
+Cell[19088, 393, 373, 6, 70, "Text",
+  Evaluatable->False],
+Cell[19464, 401, 405, 8, 70, "Input",
+  PageBreakAbove->False,
+  PageBreakBelow->False],
+Cell[19872, 411, 359, 8, 70, "Text",
+  Evaluatable->False,
+  PageBreakAbove->False,
+  PageBreakBelow->False],
+Cell[20234, 421, 742, 11, 70, "Input"]
+}, Closed]],
+
+Cell[CellGroupData[{
+Cell[21013, 437, 97, 2, 31, "Section",
+  Evaluatable->False],
+Cell[21113, 441, 472, 8, 94, "Text",
+  Evaluatable->False],
+Cell[21588, 451, 1134, 27, 447, "Input"],
+
+Cell[CellGroupData[{
+Cell[22747, 482, 273, 7, 102, "Input"],
+Cell[23023, 491, 15135, 597, 208, 4902, 465, "GraphicsData", 
+"PostScript", "Graphics",
+  Evaluatable->False]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[38195, 1093, 358, 6, 117, "Input"],
+Cell[38556, 1101, 16140, 609, 214, 4944, 466, "GraphicsData", 
+"PostScript", "Graphics",
+  Evaluatable->False]
+}, Open  ]],
+Cell[54711, 1713, 385, 7, 78, "Text",
+  Evaluatable->False],
+Cell[55099, 1722, 437, 7, 78, "Text",
+  Evaluatable->False],
+Cell[55539, 1731, 409, 7, 78, "Text",
+  Evaluatable->False],
+Cell[55951, 1740, 3317, 81, 1182, "Input"],
+
+Cell[CellGroupData[{
+Cell[59293, 1825, 490, 7, 207, "Input"],
+Cell[59786, 1834, 70322, 1470, 321, 20003, 844, "GraphicsData", 
+"PostScript", "Graphics",
+  Evaluatable->False],
+Cell[130111, 3306, 145, 7, 25, "Output",
+  Evaluatable->False]
+}, Open  ]],
+Cell[130271, 3316, 438, 7, 78, "Text",
+  Evaluatable->False]
+}, Closed]],
+
+Cell[CellGroupData[{
+Cell[130746, 3328, 87, 2, 31, "Section",
+  Evaluatable->False],
+Cell[130836, 3332, 483, 8, 142, "Text",
+  Evaluatable->False]
+}, Closed]]
+}, Open  ]]
+}
+]
+*)
+
+
+
+
+(***********************************************************************
+End of Mathematica Notebook file.
+***********************************************************************)
+

@@ -1,0 +1,474 @@
+(***********************************************************************
+
+                    Mathematica-Compatible Notebook
+
+This notebook can be used on any computer system with Mathematica 3.0,
+MathReader 3.0, or any compatible application. The data for the notebook 
+starts with the line of stars above.
+
+To get the notebook into a Mathematica-compatible application, do one of 
+the following:
+
+* Save the data starting with the line of stars above into a file
+  with a name ending in .nb, then open the file inside the application;
+
+* Copy the data starting with the line of stars above to the
+  clipboard, then use the Paste menu command inside the application.
+
+Data for notebooks contains only printable 7-bit ASCII and can be
+sent directly in email or through ftp in text mode.  Newlines can be
+CR, LF or CRLF (Unix, Macintosh or MS-DOS style).
+
+NOTE: If you modify the data for this notebook not in a Mathematica-
+compatible application, you must delete the line below containing the 
+word CacheID, otherwise Mathematica-compatible applications may try to 
+use invalid cache data.
+
+For more information on notebooks and Mathematica-compatible 
+applications, contact Wolfram Research:
+  web: http://www.wolfram.com
+  email: info@wolfram.com
+  phone: +1-217-398-0700 (U.S.)
+
+Notebook reader applications are available free of charge from 
+Wolfram Research.
+***********************************************************************)
+
+(*CacheID: 232*)
+
+
+(*NotebookFileLineBreakTest
+NotebookFileLineBreakTest*)
+(*NotebookOptionsPosition[     14788,        378]*)
+(*NotebookOutlinePosition[     16360,        427]*)
+(*  CellTagsIndexPosition[     16316,        423]*)
+(*WindowFrame->Normal*)
+
+
+
+Notebook[{
+Cell["\<\
+netUdoc.nb documents the functions in the Package netUtil.m 
+Notebook Version 2.0
+Steve Hunka, University of Alberta
+steve.hunka@ualberta.ca
+Mod. Date: Oct 25/97
+\
+\>", "Subsection",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[CellGroupData[{
+
+Cell["Notes", "Subsection"],
+
+Cell["\<\
+The conversion of a Package from V2.2 to V3.0 results in the \
+removal of comments defined by (* ....*). The Version 2.2  of netUtil.m \
+contained documentation as comments and were automatically removed in \
+conversion to Version 3.0.  This Notebook now provides the documentation.
+In V3.0 FileNames[fname] returns file names prepended with a colon, while in \
+V2.2 no colon is present.  Functions getFdata, rcvrExpr, and rprtFdata were \
+changed to accommodate this incompatible revision. The changes will work \
+satisfactorily in V2.2.\
+\>", "Text"]
+}, Open  ]],
+
+Cell[TextData[{
+  StyleBox["kbin3[q_,p_]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  "; q is the directive (question) as a string. If p is any integer then an \
+integer is to be input; if p is any real value then a real value is to be \
+input; if p={n} then a n element vector is expected; if p={r,c} then a matrix \
+with r rows and c columns is expected. If the input is inappropriate a \
+message is given and the question is posed again.  If the input is \
+appropriate it is returned.\nMod. Date: Mar 24/96 ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["kbinstrg[q,p]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " q is a string for a directive (question). p contains acceptable answers \
+in\n the form of a list,eg., p={{\"ans1\"},{\"ans2\"},....}. If the input is \
+in the list of acceptable answers,  it is returned. If the input is list the \
+directive is posed again.\nMod. Date: Mar 24/96 ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["inpvec[r,n,ty]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " presents directive \"Type n element vector of \"ty\" indices\" and\n \
+checks the vector elements being in the range (r)={min,max}.\nr is a vector \
+of the acceptable range\nn is the acceptable number of elements in the vector\
+\nty is a string describing the nature of the indices to be input\nIf the \
+range is exceed, the directive is presented again. If n elements are not \
+present, the function kbin3 will give a message and request a new vector.\n\
+Calls: kbin3\nReturns: an acceptable input vector\nMod. Date: March 25/97",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["pmat2[m,pc,rch]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " prints a 2D matrix with either numbered rows and columns or\n with \
+labelled rows and columns, in units of pc columns \nm     is the matrix to \
+print\npc    is the number of columns to use across the window\nrch   is \
+optional; if present it contains the row and column headings in the \n       \
+following format: {{\"a\",\"b\",\"c\",...},{\"A\",\"B\",\"C\",\"D\",....}} \
+where\n       Part 1 gives the row headings, and Part 2 gives the column \
+headings. \n       Part 1 must have as many headings as rows of the matrix, \
+and Part 2\n       must have as many headings as the columns of the matrix.\n \
+      If the argument rch is not used, the row and column labels\n       will \
+be the integer sequence starting at 1, and the column digits for any 2nd\n    \
+   part of the matrix printed will continue the digit sequence.\n Mod Date: \
+Jan 27/96",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["genrch[rh,ch,rc]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " generates row and column headings for displaying a 2D matrix\nrh   is the \
+string prefix for row headings\nch   is the string prefix for the column \
+headings\nrc   is the Dimensions of the matrix as a vector\nThe prefix for \
+row and columns will be followed by digits starting at 1.\nMod. Date: Feb \
+14/97  ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["rndoff[n,d]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[" rounds off the value n to d decimal digits*)",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["plotnLists[m,tl,xu,ps,pm,pn]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " plots a colored line for each column of m.\n The values in the column are \
+y coordinates and the x coordinates are taken\n to be from 1 to the number of \
+rows of the matrix.\ntl is a string title for the plot, \nxu is the string \
+label for the x-axis\nps  set to 1 for individual plots for each col; 0 for \
+no individual plots\npm set to 1 for one plot holding multiple lines; 0 for \
+no plot\npn  (Optional) set to 1 for line numbers at end of lines when pm=1; \
+else 0 \nFor single plots (ps=1), the title is appended to a plot sequence \
+number.\nThe colors are rotated through the following color sequence:(1) \
+black, (2) \nblue (3) green, (4) cyan, (5) red, (6) magenta, (7) yellow, (8) \
+dark blue, \n(9) dark green (10) turquoise, (11)brown, and (12) purple. \
+(Colors numbered 8\nto 12 may vary with different monitors.) To get a simple \
+example of the colors\nused, do plotnLists[Table[Range[0,11],{2}],\"Legend\",\
+\"units\",0,1,1]  or use the\nfunction plotLegend.\nMod. Date: Mar 20/97",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox[" ",
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["plotLegend[nl]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  ": plots a color legend for the lines plotted by those functions\n  using \
+the same variable colr for color of lines. (colr is padded with extra (0,0,0)\
+\n  to accommodate y=0). nl is the number of lines to plot; if nl<=1 no \
+legend is\n   plotted.\n   Mod. Date: Mar 25/97",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox[" getFdata",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  ": reads data from a file\n  User Input: \n  The user is asked to input the \
+name of the file holding the file data; if the file is\n   found a message is \
+given; if the file is not found a message is given and the user\n   is asked \
+to give another name. If the user enters quit at the point of entering a\n   \
+file name, a Return[{0,0}] is made. If the file is available the user is \
+asked whether\n   to use all the data or only part of it. If the user enters \
+\"all\", all data is read;\n   if \"part\" is entered, the user is asked to \
+give the starting point (record) in the\n   file and the ending point for \
+which the data is wanted.\nCalls: kbin3, kbinstrg,timeDate\nReturns: data \
+from the file read, and extnt a 2 element vector of starting and\n            \
+ ending position for the data read. If \"quit\" is entered when a file\n      \
+       name is requested, {0,0} is returned and no data is read.\nNote: \
+Calling function may need to check Part[Dimensions[data],1] to get \n         \
+actual data records read as user may input an ending record beyond the\n      \
+   number of records actually available. \nMod. Date: Oct 17/97 ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox[" \n",
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox[" timeDate[ts]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " prints month day,year at hour:minutes. ts is vector returned\n  by Date \
+or FileDate.",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox[" ",
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["openFna[fc_,p_]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " get file names and open the files; fc is structure holding a\n  \
+description of the contents of files to be set up. It has the form:\n       \
+{{1,{\"file contents description\"}},{2,{\"file contents description\"}},..}\n\
+ p determines the form of the open:\n p=0, OpenRead; p=1,OpenWrite; \
+p=2,OpenAppend; p=3,OpenTemporary\n The user is queried as to whether a file \
+with the designated file contents is to\n be set up. If a file is to be set \
+up, a file name is requested. If the file already\n exists, the user is \
+queried whether to continue, if the reply is y (yes) and p=1, \n the existing \
+file will be over written, if p=2, the existing file will be appended.\n If \
+the reply is n (no) a new file name is requested.\n The function returns a \
+structure of the form of fc but only for those\n files opened. This structure \
+has the form\n   {{1,{filename},{2,{filename}},..} \n and holds the file name \
+for each file opened as requested in fc.\nCalls:kbinstrg\nMod. Date: Mar \
+20/96 ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["rcvrExpr[rid___,rds_:0]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " to recover expression stored in the form\n {{rid,date-time,{expression}}, \
+{rid,date-time,{expression}}....}.\nrid is optional; if present it is a run \
+ID string assigned by the user at the time\n     the expression was written \
+to the file. It must be given between enclosing\n     quotation marks.\nrds \
+is a 14 digit date-time stamp assigned at the time the file was written;\n    \
+ rds is set to 0 if not present.\nUse rcvrExpr[] to get last expression; use \
+rcvrExpr[rid, date-time stamp] to \nget a specific expression as defined by \
+rid and the date-time stamp.\nUser Input: \na) the name of the file in \
+quotation marks; if quit is entered, the function stops;\n if the file is not \
+found, a message is given and a file name is requested again.\nCalls: \
+timeDate\nReturns: an expression \nMod. Date: Oct 17/97 ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["rprtFdata",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[
+  " is used to obtain a list of the runID and date-time stamp of \n\
+expressions stored in a file, such as the random seeds or last epoch data \n\
+saved while running a network simulation. It assumes each expression is \n\
+stored in the format {id,date-time-stamp,{expression}}, where id is a string, \
+\ndate-time-stamp an integer, and expression is a ",
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " expression. \nUser Input: name of file \nDisplayed: whether the file was \
+found and its creation date. Information about\n each expression is printed \
+and includes, the expression's string ID, date-time\n  stamp, Length, \
+Dimensions, and Head.\nCalls: timeDate\nMod. Date: Oct 17/97 ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True],
+
+Cell[TextData[{
+  StyleBox["saveExpr[x]",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontWeight->"Bold"],
+  StyleBox[" save the ",
+    Evaluatable->False,
+    AspectRatioFixed->True],
+  StyleBox["Mathematica",
+    Evaluatable->False,
+    AspectRatioFixed->True,
+    FontSlant->"Italic"],
+  StyleBox[
+  " expression x to a file in the format\n{expID,date-time-stamp,expression}; \
+normally x would have its own enclosing\n { and }. The date-time-stamp is a \
+14 digit integer made up of from left to right,\n \
+year,month,day,hour,minute,second created at the time the expression was\n \
+saved. The file opened for writing is opened as \"OpenAppend\" so that \n \
+expressions may be accumulated in the one file. Use function rprtFdata to get \
+\n a summary of expressions in a file, and rcrvExpr to recover an expression. \
+\nUser Input: expID\nOutput: expID, date-time-stamp, file to which x was \
+saved.\nCalls: openFna\nMod. Date: Mar 20/96 ",
+    Evaluatable->False,
+    AspectRatioFixed->True]
+}], "Text",
+  Evaluatable->False,
+  AspectRatioFixed->True]
+},
+FrontEndVersion->"Macintosh 3.0",
+ScreenRectangle->{{0, 640}, {0, 460}},
+PrintingStyleEnvironment->"Working",
+WindowToolbars->{},
+CellGrouping->Manual,
+WindowSize->{534, 435},
+WindowMargins->{{4, Automatic}, {Automatic, 1}},
+PrintingCopies->1,
+PrintingPageRange->{1, Automatic},
+PageHeaders->{{Cell[ 
+        TextData[ {
+          CounterBox[ "Page"]}], "PageNumber"], Inherited, Cell[ 
+        TextData[ {
+          ValueBox[ "FileName"]}], "Header"]}, {Cell[ 
+        TextData[ {
+          ValueBox[ "FileName"]}], "Header"], Cell[ 
+        TextData[ {
+          ValueBox[ "Date"], "/", 
+          ValueBox[ "Time"]}], "Header"], Cell[ 
+        TextData[ {
+          CounterBox[ "Page"]}], "PageNumber"]}},
+PrivateNotebookOptions->{"ColorPalette"->{RGBColor, -1}},
+ShowCellLabel->True,
+ShowCellTags->False,
+RenderingOptions->{"ObjectDithering"->True,
+"RasterDithering"->False},
+MacintoshSystemPageSetup->"\<\
+00<0004/0B`000002n88o?mooh<<H`Ui0fL5:0?l0080004/0B`000002n88o001
+0000I00000400`<300000BL?00400@8Ja=000000000006P801T1T00000000000
+00000000000000000000000000000000\>"
+]
+
+
+(***********************************************************************
+Cached data follows.  If you edit this Notebook file directly, not using
+Mathematica, you must remove the line containing CacheID at the top of 
+the file.  The cache data will then be recreated when you save this file 
+from within Mathematica.
+***********************************************************************)
+
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+
+(*NotebookFileOutline
+Notebook[{
+Cell[1709, 49, 240, 9, 136, "Subsection",
+  Evaluatable->False],
+
+Cell[CellGroupData[{
+Cell[1974, 62, 27, 0, 46, "Subsection"],
+Cell[2004, 64, 562, 9, 110, "Text"]
+}, Open  ]],
+Cell[2581, 76, 672, 16, 96, "Text",
+  Evaluatable->False],
+Cell[3256, 94, 531, 14, 80, "Text",
+  Evaluatable->False],
+Cell[3790, 110, 781, 17, 176, "Text",
+  Evaluatable->False],
+Cell[4574, 129, 1110, 22, 224, "Text",
+  Evaluatable->False],
+Cell[5687, 153, 565, 15, 112, "Text",
+  Evaluatable->False],
+Cell[6255, 170, 290, 10, 32, "Text",
+  Evaluatable->False],
+Cell[6548, 182, 1269, 23, 272, "Text",
+  Evaluatable->False],
+Cell[7820, 207, 595, 17, 96, "Text",
+  Evaluatable->False],
+Cell[8418, 226, 1403, 25, 288, "Text",
+  Evaluatable->False],
+Cell[9824, 253, 408, 15, 64, "Text",
+  Evaluatable->False],
+Cell[10235, 270, 1323, 27, 272, "Text",
+  Evaluatable->False],
+Cell[11561, 299, 1089, 21, 256, "Text",
+  Evaluatable->False],
+Cell[12653, 322, 1058, 26, 194, "Text",
+  Evaluatable->False],
+Cell[13714, 350, 1070, 26, 192, "Text",
+  Evaluatable->False]
+}
+]
+*)
+
+
+
+
+(***********************************************************************
+End of Mathematica Notebook file.
+***********************************************************************)
+

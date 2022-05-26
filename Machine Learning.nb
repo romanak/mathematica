@@ -1,0 +1,217 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 12.2' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      7555,        209]
+NotebookOptionsPosition[      6835,        187]
+NotebookOutlinePosition[      7254,        204]
+CellTagsIndexPosition[      7211,        201]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["Gaussian Distribution", "Section",
+ CellChangeTimes->{{3.8361715493954697`*^9, 
+  3.836171556164658*^9}},ExpressionUUID->"51a801c3-9950-4684-89f9-\
+f81fff5a3cbb"],
+
+Cell[TextData[{
+ "For the dataset ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"{", 
+    RowBox[{
+     SuperscriptBox["x", 
+      RowBox[{"(", "1", ")"}]], ",", 
+     SuperscriptBox["x", 
+      RowBox[{"(", "2", ")"}]], ",", "...", ",", 
+     SuperscriptBox["x", 
+      RowBox[{"(", "m", ")"}]]}], "}"}], TraditionalForm]],
+  FormatType->TraditionalForm,ExpressionUUID->
+  "a981a5b9-ceb8-437d-bd8c-945c7c49b3ff"],
+ " mean ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"\[Mu]", "=", 
+    RowBox[{
+     FractionBox["1", "m"], 
+     RowBox[{
+      UnderoverscriptBox["\[Sum]", 
+       RowBox[{"i", "=", "1"}], "m"], 
+      SuperscriptBox["x", 
+       RowBox[{"(", "i", ")"}]]}]}]}], TraditionalForm]],
+  FormatType->TraditionalForm,ExpressionUUID->
+  "b2f13b8b-c258-442d-b0fe-f84a4bcd745a"],
+ ", variance ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    SuperscriptBox["\[Sigma]", "2"], "=", 
+    RowBox[{
+     FractionBox["1", "m"], 
+     RowBox[{
+      UnderoverscriptBox["\[Sum]", 
+       RowBox[{"i", "=", "1"}], "m"], 
+      SuperscriptBox[
+       RowBox[{"(", 
+        RowBox[{
+         SuperscriptBox["x", 
+          RowBox[{"(", "i", ")"}]], "-", "\[Mu]"}], ")"}], "2"]}]}]}], 
+   TraditionalForm]],
+  FormatType->TraditionalForm,ExpressionUUID->
+  "792f5b2a-bb16-4261-8a2e-5102c4fa1047"],
+ ". For statistics the denominator is ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"m", "-", "1"}], TraditionalForm]],
+  FormatType->TraditionalForm,ExpressionUUID->
+  "0c6f32c2-1b01-4afa-ae42-0b42a3fef0fb"],
+ " instead of ",
+ Cell[BoxData[
+  FormBox["m", TraditionalForm]],
+  FormatType->TraditionalForm,ExpressionUUID->
+  "44dd5400-b5e6-4e08-87ec-b0e908a8b683"],
+ "."
+}], "Text",
+ CellChangeTimes->{{3.8361724884129744`*^9, 3.8361725180539837`*^9}, {
+  3.836172550041266*^9, 
+  3.836172829197069*^9}},ExpressionUUID->"0be5d2a3-c2a2-40b4-b095-\
+afc66eadb3ca"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Manipulate", "[", 
+  RowBox[{
+   RowBox[{"Plot", "[", 
+    RowBox[{
+     RowBox[{
+      FractionBox["1", 
+       RowBox[{
+        SqrtBox[
+         RowBox[{"2", "\[Pi]"}]], "\[Sigma]"}]], 
+      SuperscriptBox["\[ExponentialE]", 
+       FractionBox[
+        RowBox[{"-", 
+         SuperscriptBox[
+          RowBox[{"(", 
+           RowBox[{"x", "-", "\[Mu]"}], ")"}], "2"]}], 
+        RowBox[{"2", 
+         SuperscriptBox["\[Sigma]", "2"]}]]]}], ",", 
+     RowBox[{"{", 
+      RowBox[{"x", ",", 
+       RowBox[{"\[Mu]", "-", 
+        RowBox[{"3", "\[Sigma]"}]}], ",", 
+       RowBox[{"\[Mu]", "+", 
+        RowBox[{"3", "\[Sigma]"}]}]}], "}"}], ",", 
+     RowBox[{"PlotRange", "\[Rule]", "Full"}]}], "]"}], ",", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"\[Mu]", ",", "0", ",", "\"\<Mean \[Mu]\>\""}], "}"}], ",", 
+     RowBox[{"-", "10"}], ",", "10"}], "}"}], ",", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{
+      "\[Sigma]", ",", "1", ",", "\"\<Standard deviation \[Sigma]\>\""}], 
+      "}"}], ",", "0.1", ",", "10"}], "}"}]}], "]"}]], "Input",
+ CellChangeTimes->{{3.836170082846043*^9, 3.836170084685082*^9}, {
+  3.8361701464233217`*^9, 3.8361702746509733`*^9}, {3.836170326050828*^9, 
+  3.836170411192478*^9}, {3.8361704487292147`*^9, 3.836170530560021*^9}, {
+  3.836171496516452*^9, 3.83617149787906*^9}, {3.8361715657955227`*^9, 
+  3.83617158681223*^9}, {3.836171774501038*^9, 3.8361717849378433`*^9}, {
+  3.836171840620166*^9, 3.836171854372076*^9}, {3.836172145571933*^9, 
+  3.836172150122596*^9}},
+ CellLabel->"In[42]:=",ExpressionUUID->"988e1e6e-7176-4688-b544-9c67a6f00981"],
+
+Cell[BoxData[
+ TagBox[
+  StyleBox[
+   DynamicModuleBox[{$CellContext`\[Mu]$$ = -0.29999999999999893`, \
+$CellContext`\[Sigma]$$ = 8.15, Typeset`show$$ = True, 
+    Typeset`bookmarkList$$ = {}, Typeset`bookmarkMode$$ = "Menu", 
+    Typeset`animator$$, Typeset`animvar$$ = 1, Typeset`name$$ = 
+    "\"untitled\"", Typeset`specs$$ = {{{
+       Hold[$CellContext`\[Mu]$$], 0, "Mean \[Mu]"}, -10, 10}, {{
+       Hold[$CellContext`\[Sigma]$$], 1, "Standard deviation \[Sigma]"}, 0.1, 
+      10}}, Typeset`size$$ = {360., {113., 117.}}, Typeset`update$$ = 0, 
+    Typeset`initDone$$, Typeset`skipInitDone$$ = True}, 
+    DynamicBox[Manipulate`ManipulateBoxes[
+     1, StandardForm, 
+      "Variables" :> {$CellContext`\[Mu]$$ = 0, $CellContext`\[Sigma]$$ = 1}, 
+      "ControllerVariables" :> {}, 
+      "OtherVariables" :> {
+       Typeset`show$$, Typeset`bookmarkList$$, Typeset`bookmarkMode$$, 
+        Typeset`animator$$, Typeset`animvar$$, Typeset`name$$, 
+        Typeset`specs$$, Typeset`size$$, Typeset`update$$, Typeset`initDone$$,
+         Typeset`skipInitDone$$}, "Body" :> 
+      Plot[(1/(Sqrt[2 Pi] $CellContext`\[Sigma]$$)) 
+        E^(-($CellContext`x - $CellContext`\[Mu]$$)^2/(
+          2 $CellContext`\[Sigma]$$^2)), {$CellContext`x, \
+$CellContext`\[Mu]$$ - 3 $CellContext`\[Sigma]$$, $CellContext`\[Mu]$$ + 
+         3 $CellContext`\[Sigma]$$}, PlotRange -> Full], 
+      "Specifications" :> {{{$CellContext`\[Mu]$$, 0, "Mean \[Mu]"}, -10, 
+         10}, {{$CellContext`\[Sigma]$$, 1, "Standard deviation \[Sigma]"}, 
+         0.1, 10}}, "Options" :> {}, "DefaultOptions" :> {}],
+     ImageSizeCache->{407., {169., 175.}},
+     SingleEvaluation->True],
+    Deinitialization:>None,
+    DynamicModuleValues:>{},
+    SynchronousInitialization->True,
+    UndoTrackedVariables:>{Typeset`show$$, Typeset`bookmarkMode$$},
+    UnsavedVariables:>{Typeset`initDone$$},
+    UntrackedVariables:>{Typeset`size$$}], "Manipulate",
+   Deployed->True,
+   StripOnInput->False],
+  Manipulate`InterpretManipulate[1]]], "Output",
+ CellChangeTimes->{{3.836170203449955*^9, 3.836170275325412*^9}, {
+   3.836170333195527*^9, 3.836170412208744*^9}, {3.836170470887884*^9, 
+   3.8361704897000847`*^9}, {3.8361705205316133`*^9, 3.836170532020027*^9}, 
+   3.8361715087038603`*^9, {3.836171574505083*^9, 3.83617158780208*^9}, {
+   3.836171779024825*^9, 3.836171786366939*^9}, 3.836171817645563*^9, 
+   3.8361718548628483`*^9, {3.8361721507230988`*^9, 3.836172168524212*^9}},
+ CellLabel->"Out[42]=",ExpressionUUID->"65f4848e-9310-42bd-9a16-416ec4a9d4b1"]
+}, Open  ]]
+}, Open  ]]
+},
+WindowToolbars->"EditBar",
+WindowSize->{808, 893},
+WindowMargins->{{Automatic, -28}, {54, Automatic}},
+FrontEndVersion->"12.2 for Linux ARM (32-bit) (March 25, 2021)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"ee2d2941-063c-4f18-8084-534798f4505b"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 168, 3, 67, "Section",ExpressionUUID->"51a801c3-9950-4684-89f9-f81fff5a3cbb"],
+Cell[751, 27, 1835, 61, 62, "Text",ExpressionUUID->"0be5d2a3-c2a2-40b4-b095-afc66eadb3ca"],
+Cell[CellGroupData[{
+Cell[2611, 92, 1655, 43, 92, "Input",ExpressionUUID->"988e1e6e-7176-4688-b544-9c67a6f00981"],
+Cell[4269, 137, 2538, 46, 363, "Output",ExpressionUUID->"65f4848e-9310-42bd-9a16-416ec4a9d4b1"]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
